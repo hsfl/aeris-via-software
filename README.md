@@ -1,4 +1,5 @@
 # aeris-via-software
+## Brief Overview
 This is the code repository for the software to utilize the VIA Payload, the Avantes 2048CL/4096CL Spectrometer. 
 The Spectrometer has a USB interface which, in the current AERIS design, is utilized using a Teensy 4.1 and the [USBHost_t36](https://github.com/PaulStoffregen/USBHost_t36) library by Paul Stroffregen.
 A driver specific to the Spectrometer is needed, and is what enables the command and data communication between the Teensy and the Spectrometer.
