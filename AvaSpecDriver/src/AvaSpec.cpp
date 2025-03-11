@@ -1,6 +1,8 @@
 #include <Arduino.h>
 #include "USBHost_t36.h"
 #include "AvaSpec.h"
+#include <iostream>
+#include <vector>
 
 #define AV_VID 0x1992
 #define AV_PID 0x0668
@@ -17,6 +19,9 @@ void AvaSpec::init()
 	driver_ready_for_device(this);
 	rx_data_ready = false; 
 	messageFound = false; 
+	measAmount = 0;
+	memset(measurement, 0, MEAS_SIZE);
+	appendIndex = 0; 
 }
 
 bool AvaSpec::claim(Device_t *dev, int type, const uint8_t *descriptors, uint32_t len)
@@ -140,18 +145,25 @@ void AvaSpec::process_rx_data(const Transfer_t *transfer) {
 	memcpy(rx_buffer, transfer->buffer, transfer->length);
 	rx_data_ready = true; 
 
-	if (rx_buffer[0] == 0x21 || rx_buffer[4] == 0xB1) {
-		Serial.println("\nMeasurement Data Received:");
-		printBuffer(rx_buffer, transfer->length);
-
-		// Sending Acknowledgement
-		uint8_t ack[6] = {0x21, 0x00, 0x02, 0x00, 0xC0, 0x00};
-		queue_Data_Transfer(txpipe, ack, sizeof(ack), this); 
+	if ((rx_buffer[0] == 0x21 || rx_buffer[4] == 0xB1)) {
+		Serial.println("\nMeasurement Data Received");
+		// printBuffer(rx_buffer, BUF_SIZE);
+		memcpy(&measurement[0], rx_buffer, 512);
 		messageFound = true; 
+		measAmount += 1; 
 	}
 	if (messageFound) {
-		printBuffer(rx_buffer, transfer->length);
-	}
+		if (measAmount == 8) {
+			// printBuffer(rx_buffer, 10);
+			memcpy(&measurement[measAmount * 512], rx_buffer, 10);
+			measAmount = 9;
+		}
+		else if (measAmount < 8) {
+			//printBuffer(rx_buffer, BUF_SIZE);
+			memcpy(&measurement[measAmount * 512], rx_buffer, 512);
+			measAmount += 1; 
+		}
+	}	
 }
 
 void AvaSpec::tx_callback(const Transfer_t *transfer) {
@@ -165,19 +177,14 @@ void AvaSpec::process_tx_data(const Transfer_t *transfer) {
 }
 
 void AvaSpec::handleUnsolicitatedData() {
-	if (!rx_data_ready) {
-		queue_Data_Transfer(rxpipe, rx_buffer, rx_size, this);
-		return;
-	}
-
-	// Serial.println("\nProcessing received data...");
-	// printBuffer(rx_buffer, 512);
-
+	queue_Data_Transfer(rxpipe, rx_buffer, rx_size, this);
+	memset(rx_buffer, 0, BUF_SIZE);
 	rx_data_ready = false; 
 }
 
 // --------------------------------------------------------------------------
-
+// Function to get identifying information from Spectrometer. 
+// Not really necessary for function, but good to validate proper function. 
 void AvaSpec::getIdentification()
 {
 
@@ -271,6 +278,7 @@ void AvaSpec::startMeasurement()
 	Serial.println("Queuing Data...");
 }
 
+// Function to prepare a measurement, with set parameters. Called before starting measurement. 
 void AvaSpec::prepareMeasurement()
 {
     memset(tx_buffer, 0, BUF_SIZE);  // Clear previous command data
@@ -333,6 +341,8 @@ void AvaSpec::prepareMeasurement()
 	memset(rx_buffer, 0, BUF_SIZE);
 }
 
+
+// Function to stop Measurements on the AvaSpec
 void AvaSpec::stopMeasurement()
 {
     memset(tx_buffer, 0, BUF_SIZE);
@@ -369,7 +379,37 @@ void AvaSpec::stopMeasurement()
 	memset(rx_buffer, 0, BUF_SIZE);
 }
 
+void AvaSpec::measurementAcknowledgement()
+{
+	printBuffer(measurement, MEAS_SIZE);
 
+	// Serial.println("START_TRANSMISSION");  // Send a start marker
+    // Serial.write(measurement, MEAS_SIZE);  // Send raw byte data
+	// Serial.flush();
+    // Serial.println("END_TRANSMISSION");  // Send an end marker
+
+	uint32_t len = 0; 
+	tx_buffer[0] = 0x20;
+    tx_buffer[1] = 0x00;
+    tx_buffer[2] = 0x02;
+    tx_buffer[3] = 0x00;
+    tx_buffer[4] = 0xC0;  // **Command ID for ackwnowledgement**
+    tx_buffer[5] = 0x00;
+
+	Serial.println("\n🔹 Sending measurement acknowledgement:");
+    printBuffer(tx_buffer, 6);
+
+	__disable_irq();
+    queue_Data_Transfer(txpipe, tx_buffer, tx_size, this);
+    __enable_irq();
+	delay(10);
+
+	memset(tx_buffer, 0, BUF_SIZE); 
+
+	messageFound = false; 
+	measAmount = 0;
+	appendIndex = 0;
+}
 
 
 

@@ -8,13 +8,8 @@ public:
     AvaSpec(USBHost &host) { init(); }
 
     void getIdentification();
-    // void prepareMeasurement();
     void getPipeBuffer();
     void printBuffer(uint8_t* buf, size_t n);
-    // void measResponse();
-    // void shortPrepMeas();
-    // void printBytes(uint8_t* buf, size_t n);
-    // 
 
     /**
      * calls command start_measurement. may need to be called after prepareMeasurement()
@@ -22,25 +17,10 @@ public:
      * Expected Response ID: 0x86
      */
     void startMeasurement();
-    
-    // /**
-    //  * calls command stop_measurement. Must be called after startMeasurement()
-    //  * Command ID: 0x0F
-    //  * Expected Response ID: 0x8F
-    //  */
-    // void stopMeasurement();
-
-    // /**
-    //  * Calls command get_stored_meas. Must be called after stop_measurement()
-    //  * Command ID: 0x07
-    //  * Expected Response ID: 0x87
-    //  */
-    // void getStoredMeasurement();
-
     void handleUnsolicitatedData();
-    
     void prepareMeasurement();
     void stopMeasurement();
+    void measurementAcknowledgement(); 
 
 protected:
     virtual bool claim(Device_t *device, int type, const uint8_t *descriptors, uint32_t len);
@@ -61,10 +41,14 @@ private:
 	Transfer_t mytransfers[7] __attribute__ ((aligned(32)));
     static void tx_callback(const Transfer_t *transfer);
     static void rx_callback(const Transfer_t *transfer);
-    static const int BUF_SIZE = 512; 
+    static const int BUF_SIZE = 512;
+    static const int MEAS_SIZE = 4106;  
     bool rx_data_ready;
     uint8_t rx_buffer[BUF_SIZE];
     uint8_t tx_buffer[BUF_SIZE];
     bool messageFound;
+    uint8_t measAmount; 
+    uint8_t measurement[MEAS_SIZE]; 
+    int appendIndex; 
 };
 #endif
