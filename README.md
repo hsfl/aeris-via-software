@@ -19,12 +19,14 @@ A driver specific to the Spectrometer is needed, and is what enables the command
 * This should have opened the AvaSpecDriver folder as a PlatformIO project with all the dependencies and configurations it needs.
 6. From the explorer column on the left, navigate the AvaSpecDriver folder to "src", then to "main.cpp".
 7. On the bottom left are multiple buttons; click the checkmark to build the code, confirming a successful build when [SUCCESS] appears on the terminal that pops up.
-* That finishes building the software. To get relevant data, continue to "Getting Data" section.
+* That finishes building the software.
+
+To get relevant data, continue to "Getting Data" section.
 
 ## Getting Data
 WIP...
 
-Critical Path: 
+### Critical Path: 
 - [x] Create Initial Driver
 - [x] Validate Teensy and Spectrometer USB Ports can connect.
 - [x] Attempt Identification Command & Response to validate communication.
