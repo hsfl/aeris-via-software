@@ -12,7 +12,7 @@ A driver specific to the Spectrometer is needed, and is what enables the command
 * GitHub Desktop: https://desktop.github.com/download/
 2. Install the PlatformIO extension in VSCode.
 * PlatformIO: https://platformio.org/install/ide?install=vscode
-3. Clone the repository from GitHub Desktop by clicking "Add" at the top left, "Clone Repository...", and "URL," copying the link below into the prompt, and then clicking Clone.
+3. Clone the repository from GitHub Desktop by clicking "Add" at the top left, "Clone Repository...", "URL," copying the link below into the prompt, and then clicking Clone.
 * Repository URL: https://github.com/hsfl/aeris-via-software.git
 4. Go to VSCode and initialize the PlatformIO extension.
 5. In the "QUICK ACCESS" column, click on "Open" and then "Open Project" in the tab that opens. Locate and choose the "AvaSpecDriver" folder within the "aeris-via-software" folder.
