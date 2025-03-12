@@ -10,8 +10,9 @@ A driver specific to the Spectrometer is needed, and is what enables the command
 1. Download and install VSCode & GitHub Desktop.
 * VSCode: https://code.visualstudio.com/download
 * GitHub Desktop: https://desktop.github.com/download/
-2. Install the PlatformIO extension in VSCode.
+2. Install the both the C/C++ and PlatformIO extension in VSCode.
 * PlatformIO: https://platformio.org/install/ide?install=vscode
+* C/C++: https://code.visualstudio.com/docs/languages/cpp 
 3. Clone the repository from GitHub Desktop by clicking "Add" at the top left, "Clone Repository...", "URL," copying the link below into the prompt, and then clicking Clone.
 * Repository URL: https://github.com/hsfl/aeris-via-software.git
 4. Go to VSCode and initialize the PlatformIO extension.
