@@ -27,6 +27,8 @@ To get relevant data, continue to "Getting Data" section.
 ## Getting Data
 WIP...
 
+![Example Pixel Spectrum](Example_Pixel_Spectrum.png)
+
 ### Critical Path: 
 - [x] Create Initial Driver
 - [x] Validate Teensy and Spectrometer USB Ports can connect.
