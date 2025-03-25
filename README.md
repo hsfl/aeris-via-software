@@ -27,7 +27,7 @@ To get relevant data, continue to "Getting Data" section.
 ## Getting Data
 WIP...
 
-![Example Pixel Spectrum](Example_Pixel_Spectrum.png)
+![Example Pixel Spectrum](Example_Pixel_Spectrum.png "Example Spectrum")
 
 ### Critical Path: 
 - [x] Create Initial Driver
