@@ -2,6 +2,8 @@
 #define __AvaSpec_h_
 #include <Arduino.h>
 #include <USBHost_t36.h>
+#include <SD.h>
+#include <Logger.h>
 
 class AvaSpec : public USBDriver {
 public:

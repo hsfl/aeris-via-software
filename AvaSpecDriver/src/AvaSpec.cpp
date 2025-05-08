@@ -3,6 +3,8 @@
 #include "AvaSpec.h"
 #include <iostream>
 #include <vector>
+#include <SD.h>
+#include <Logger.h>
 
 #define AV_VID 0x1992
 #define AV_PID 0x0668
@@ -147,6 +149,7 @@ void AvaSpec::process_rx_data(const Transfer_t *transfer) {
 
 	if ((rx_buffer[0] == 0x21 || rx_buffer[4] == 0xB1)) {
 		Serial.println("\nMeasurement Data Received");
+		// measurementFile.println("Measurement Data: ");
 		// printBuffer(rx_buffer, BUF_SIZE);
 		memcpy(&measurement[0], rx_buffer, 512);
 		messageFound = true; 
@@ -382,13 +385,13 @@ void AvaSpec::stopMeasurement()
 void AvaSpec::measurementAcknowledgement()
 {
 	printBuffer(measurement, MEAS_SIZE);
-
+	logMeasurement(measurement, sizeof(measurement));
 	// Serial.println("START_TRANSMISSION");  // Send a start marker
     // Serial.write(measurement, MEAS_SIZE);  // Send raw byte data
 	// Serial.flush();
     // Serial.println("END_TRANSMISSION");  // Send an end marker
 
-	uint32_t len = 0; 
+	// uint32_t len = 0; 
 	tx_buffer[0] = 0x20;
     tx_buffer[1] = 0x00;
     tx_buffer[2] = 0x02;
