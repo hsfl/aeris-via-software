@@ -6,317 +6,248 @@
 #include <SD.h>
 #include <Logger.h>
 
+// Vendor and Product IDs for Avantes AvaSpec-Mini2048CL spectrometer
 #define AV_VID 0x1992
 #define AV_PID 0x0668
 
-/*
-Beginning functions to initialize the AvaSpec Driver
-init()
-claim()
-*/
-void AvaSpec::init()
-{
-	contribute_Pipes(mypipes, sizeof(mypipes) / sizeof(Pipe_t));
-	contribute_Transfers(mytransfers, sizeof(mytransfers) / sizeof(Transfer_t));
-	driver_ready_for_device(this);
-	rx_data_ready = false; 
-	messageFound = false; 
-	measAmount = 0;
-	memset(measurement, 0, MEAS_SIZE);
-	appendIndex = 0; 
-}
-
-bool AvaSpec::claim(Device_t *dev, int type, const uint8_t *descriptors, uint32_t len)
-{
-	Serial.println("\n Attempting to claim AvaSpec device");
-	Serial.print("\n AvaSpec driver attempting to claim this = ");
-	Serial.println((uint32_t)this, HEX);
-
-	if (type == 0)
-	{
-		Serial.println("\nDevice Descriptors:");
-		Serial.print("vid = ");
-		Serial.println(dev->idVendor, HEX);
-		Serial.print("pid = ");
-		Serial.println(dev->idProduct, HEX);
-		// println("bcdDevice=", dev->bcdDevice, HEX);
-		Serial.print("bDeviceClass = ");
-		Serial.println(dev->bDeviceClass, HEX);
-		Serial.print("bDeviceSubClass = ");
-		Serial.println(dev->bDeviceSubClass, HEX);
-		// dump_hexbytes(descriptors, len);
-	}
-
-	// Descriptor length of Ava Spec is 23 bytes.
-	if (len != 23)
-		return false;
-	// Check if the device is Ava Spec Mini specifically.
-	if (dev->idVendor != AV_VID || dev->idProduct != AV_PID)
-		return false;
-	Serial.println("AvaSpec device found and claimed");
-
-	Serial.print("\nInterface # = ");
-	Serial.println(descriptors[2], HEX);
-	Serial.print("Interface Class = ");
-	Serial.println(descriptors[5], HEX);
-	Serial.print("nEndpoints = ");
-	Serial.println(descriptors[4], HEX);
-	Serial.print("IN Endpoint Address = ");
-	Serial.println(descriptors[11], HEX);
-	tx_ep = descriptors[11];
-	Serial.print("Endpoint Attribute = ");
-	Serial.println(descriptors[12], HEX);
-	Serial.print("OUT Endpoint Address = ");
-	Serial.println(descriptors[18], HEX);
-	rx_ep = descriptors[18];
-	Serial.print("Endpoint Attribute = ");
-	Serial.println(descriptors[19], HEX);
-
-	rx_size = BUF_SIZE;
-	tx_size = BUF_SIZE;
-
-	rxpipe = new_Pipe(dev, 2, 6, 1, rx_size);
-	rxpipe->callback_function = rx_callback;
-	txpipe = new_Pipe(dev, 2, 2, 0, tx_size);
-	txpipe->callback_function = tx_callback;
-
-	return true;
-}
-
+// ============================================================================
+// INITIALIZATION AND DEVICE CLAIM
+// ============================================================================
 
 /**
- * Prints the out n bytes of the given buffer
- * will print a newline before printing bytes
+ * Initializes the AvaSpec driver within the USBHost_t36 framework.
+ * Sets up pipes, transfer slots, and runtime state variables.
  */
-void AvaSpec::printBuffer(uint8_t* buf, size_t n)
-{
-	for (size_t i = 0; i < n; i++)
-	{
-		if (i % 32 == 0)
-		{ // Print a newline every 16 bytes for readability. will print a newline immediately
-			Serial.println();
-		}
-		if (buf[i] < 0x10)
-		{ // Add leading zero for single hex digits
-			Serial.print("0");
-		}
-		Serial.print(buf[i], HEX);
-		Serial.print(" ");
-	}
-	Serial.println();
+void AvaSpec::init() {
+    // Register available pipe and transfer structures with the Teensy USB host controller.
+    contribute_Pipes(mypipes, sizeof(mypipes) / sizeof(Pipe_t));
+    contribute_Transfers(mytransfers, sizeof(mytransfers) / sizeof(Transfer_t));
+
+    // Notify the USB host library that this driver is ready to claim matching devices.
+    driver_ready_for_device(this);
+
+    // Reset internal flags and counters.
+    rx_data_ready = false;   // True when RX transfer completes
+    messageFound  = false;   // True when valid measurement found
+    measAmount    = 0;       // Legacy count of RX chunks
+    appendIndex   = 0;       // Index offset for measurement buffer
+
+    // Clear the measurement buffer (safety against stale data)
+    memset(measurement, 0, MEAS_SIZE);
 }
 
-void AvaSpec::getPipeBuffer()
-{
-	uint8_t response[BUF_SIZE];
-	memset(response, 0, BUF_SIZE);
-	queue_Data_Transfer(rxpipe, response, rx_size, this);
+/**
+ * Attempt to claim a newly detected USB device.
+ * This function is called automatically by the USBHost_t36 framework
+ * when new devices are attached to the USB bus.
+ */
+bool AvaSpec::claim(Device_t *dev, int type, const uint8_t *descriptors, uint32_t len) {
+    Serial.println("\nAttempting to claim AvaSpec device...");
 
-	// print out the response we got
-	Serial.println("\nreading response...");
+    if (type == 0) {
+        Serial.printf("VID: %04X  PID: %04X\n", dev->idVendor, dev->idProduct);
+    }
 
-	bool dataFound = false;
-	int initialTime = millis();
+    // Reject any device that doesn’t match Avantes’ descriptor pattern.
+    if (len != 23) return false;
+    if (dev->idVendor != AV_VID || dev->idProduct != AV_PID) return false;
 
-	while((millis() - initialTime) < 10000) {
-		for (int i = 0; i < BUF_SIZE; i++) {
-			if (response[i] == 0x21) {
-				Serial.println("Data marker found! Printing buffer...");
-				printBuffer(response, 512);
-				dataFound = true; 
-				break; 
-			}
-		}
-		delay(1);
-		if (dataFound) break; 
-	}
-	Serial.print("no response...");
+    Serial.println("✅ AvaSpec Mini device found and claimed.");
+
+    // Extract endpoint information from descriptor.
+    tx_ep = descriptors[11];   // OUT endpoint address
+    rx_ep = descriptors[18];   // IN endpoint address
+
+    rx_size = BUF_SIZE;
+    tx_size = BUF_SIZE;
+
+    // Create USB pipes: one for incoming (bulk IN), one for outgoing (bulk OUT)
+    rxpipe = new_Pipe(dev, 2, 6, 1, rx_size);
+    txpipe = new_Pipe(dev, 2, 2, 0, tx_size);
+
+    // Assign static callback functions
+    rxpipe->callback_function = rx_callback;
+    txpipe->callback_function = tx_callback;
+
+    return true;
 }
 
+// ============================================================================
+// DEBUG UTILITIES
+// ============================================================================
 
-// --------------------------------------------------------------------------
-//	Functions called when queuing a data transfer or when a transfer is done.  
-// --------------------------------------------------------------------------
-void AvaSpec::rx_callback(const Transfer_t *transfer){
-	if (transfer->driver) {
-		((AvaSpec *)(transfer->driver))->process_rx_data(transfer);
-	}
+/**
+ * Prints the contents of a byte buffer as hexadecimal values.
+ * Newline every 32 bytes for easy visual parsing.
+ */
+void AvaSpec::printBuffer(uint8_t* buf, size_t n) {
+    for (size_t i = 0; i < n; i++) {
+        if (i % 32 == 0) Serial.println();
+        if (buf[i] < 0x10) Serial.print("0");
+        Serial.print(buf[i], HEX);
+        Serial.print(" ");
+    }
+    Serial.println();
 }
 
+// ============================================================================
+// USB TRANSFER CALLBACKS
+// ============================================================================
+
+/**
+ * Static callback entry point called by the USBHost_t36 library.
+ * Redirects to the object-specific handler.
+ */
+void AvaSpec::rx_callback(const Transfer_t *transfer) {
+    if (transfer->driver) {
+        ((AvaSpec *)(transfer->driver))->process_rx_data(transfer);
+    }
+}
+
+/**
+ * Handles incoming USB transfer data.
+ * Copies the transfer payload into rx_buffer and sets ready flag.
+ */
 void AvaSpec::process_rx_data(const Transfer_t *transfer) {
-	memcpy(rx_buffer, transfer->buffer, transfer->length);
-	rx_data_ready = true; 
-
-	if ((rx_buffer[0] == 0x21 || rx_buffer[4] == 0xB1)) {
-		Serial.println("\nMeasurement Data Received");
-		// measurementFile.println("Measurement Data: ");
-		// printBuffer(rx_buffer, BUF_SIZE);
-		memcpy(&measurement[0], rx_buffer, 512);
-		messageFound = true; 
-		measAmount += 1; 
-	}
-	if (messageFound) {
-		if (measAmount == 8) {
-			// printBuffer(rx_buffer, 10);
-			memcpy(&measurement[measAmount * 512], rx_buffer, 10);
-			measAmount = 9;
-		}
-		else if (measAmount < 8) {
-			//printBuffer(rx_buffer, BUF_SIZE);
-			memcpy(&measurement[measAmount * 512], rx_buffer, 512);
-			measAmount += 1; 
-		}
-	}	
+    memcpy(rx_buffer, transfer->buffer, transfer->length);
+    rx_data_ready = true;
 }
-
-void AvaSpec::tx_callback(const Transfer_t *transfer) {
-	if (transfer->driver) {
-		((AvaSpec *)(transfer->driver))->process_tx_data(transfer);
-	}
-}
-
-void AvaSpec::process_tx_data(const Transfer_t *transfer) {
-	// Tx Data has been sent.
-}
-
-void AvaSpec::handleUnsolicitatedData() {
-	queue_Data_Transfer(rxpipe, rx_buffer, rx_size, this);
-	memset(rx_buffer, 0, BUF_SIZE);
-	rx_data_ready = false; 
-}
-
-// --------------------------------------------------------------------------
-// Function to get identifying information from Spectrometer. 
-// Not really necessary for function, but good to validate proper function. 
-void AvaSpec::getIdentification()
-{
-
-	uint32_t len = 0;
-	// set commmand header
-	tx_buffer[len++] = 0x20;
-	tx_buffer[len++] = 0x00;
-	tx_buffer[len++] = 0x02;
-	tx_buffer[len++] = 0x00;
-	tx_buffer[len++] = 0x13;
-	tx_buffer[len++] = 0x00;
-
-	// print out our to-be-sent command up to n bytes
-	Serial.println("\nsending command: get_ident");
-	printBuffer(tx_buffer, 6);
-
-	__disable_irq();
-	queue_Data_Transfer(txpipe, tx_buffer, tx_size, this);
-	__enable_irq();
-
-	rx_data_ready = false; 
-	queue_Data_Transfer(rxpipe, rx_buffer, rx_size, this);
-
-	int start_time = millis();
-	while(!rx_data_ready && (millis() - start_time < 3000)) {
-		delay(1);
-	}
-
-	if (rx_data_ready) {
-		Serial.println("\nfetching response: get_ident_response");
-		printBuffer(rx_buffer, 92);
-	} else {
-		Serial.println("\nNo response received.");
-	}
-
-	memset(tx_buffer, 0, BUF_SIZE);
-	memset(rx_buffer, 0, BUF_SIZE);
-}
-
 
 /**
- * calls command start_measurement. may need to be called after prepareMeasurement()
- * Command ID: 0x06
- * Expected Response ID: 0x86
+ * Static TX callback entry point.
  */
-void AvaSpec::startMeasurement()
-{
-	// command and its parameters
-	// uint8_t command_id = 0x06;
-	// signed short nmsr = 1;	// stands for number of measurements. Defined as an unsigned short on the manual
-
-	uint32_t len = 0;
-	// set commmand header
-	tx_buffer[len++] = 0x20;
-	tx_buffer[len++] = 0x00;
-	tx_buffer[len++] = 0x04;
-	tx_buffer[len++] = 0x00;
-	tx_buffer[len++] = 0x06;
-	tx_buffer[len++] = 0x00;
-	tx_buffer[len++] = 0x00;
-	tx_buffer[len++] = 0x04;
-
-
-	// print out our to-be-sent command up to n bytes
-	Serial.println("\nsending command: start_measurement");
-	printBuffer(tx_buffer, 8);
-
-	__disable_irq();
-	queue_Data_Transfer(txpipe, tx_buffer, tx_size, this);
-	__enable_irq();
-
-	rx_data_ready = false; 
-	queue_Data_Transfer(rxpipe, rx_buffer, rx_size, this);
-
-	int start_time = millis();
-	while (!rx_data_ready && (millis() - start_time < 1000)) {
-		delay(1);
-	}
-
-	if (rx_data_ready) {
-		Serial.println("\nfetching response: start_measurement_response");
-		printBuffer(rx_buffer, 6);
-	} else {
-		Serial.println("\nNo response received.");
-	}
-	rx_data_ready = false; 
-
-	memset(tx_buffer, 0, BUF_SIZE);
-	memset(rx_buffer, 0, BUF_SIZE);
-	queue_Data_Transfer(rxpipe, rx_buffer, rx_size, this);
-	Serial.println("Queuing Data...");
+void AvaSpec::tx_callback(const Transfer_t *transfer) {
+    if (transfer->driver) {
+        ((AvaSpec *)(transfer->driver))->process_tx_data(transfer);
+    }
 }
 
-// Function to prepare a measurement, with set parameters. Called before starting measurement. 
-void AvaSpec::prepareMeasurement()
-{
-    memset(tx_buffer, 0, BUF_SIZE);  // Clear previous command data
-    tx_buffer[0] = 0x20;  // Type
-    tx_buffer[1] = 0x00;  // Sequence number
-    tx_buffer[2] = 0x2B;  // Length LSB (43 bytes total)
-    tx_buffer[3] = 0x00;  // Length MSB
-    tx_buffer[4] = 0x05;  // Command ID for prepare_measurement
-    tx_buffer[5] = 0x00;  // Sequence
+/**
+ * Handles completed TX transfers.
+ * Currently unused but retained for debugging or LED signaling.
+ */
+void AvaSpec::process_tx_data(const Transfer_t *transfer) {
+    // Transmission complete
+}
 
-    // 🔹 Store values in Big Endian
-    tx_buffer[6] = 0x00;  // Start Pixel MSB
-	tx_buffer[7] = 0x00;  // Start Pixel LSB
-	tx_buffer[8] = 0x07;  // Stop Pixel MSB
-	tx_buffer[9] = 0xFF;  // Stop Pixel LSB
+// ============================================================================
+// LOW-LEVEL HELPERS
+// ============================================================================
 
-    tx_buffer[10] = 0x42;  // MSB
-	tx_buffer[11] = 0xC8;
-	tx_buffer[12] = 0x00;
-	tx_buffer[13] = 0x00;  // LSB
+/**
+ * Queues a background read to capture any unsolicited messages
+ * from the device (e.g., async notifications or residual data).
+ */
+void AvaSpec::handleUnsolicitatedData() {
+    queue_Data_Transfer(rxpipe, rx_buffer, rx_size, this);
+    memset(rx_buffer, 0, BUF_SIZE);
+    rx_data_ready = false;
+}
 
-    // Integration Delay (4 bytes) - Default to 0 (No Delay)
-	tx_buffer[14] = 0x00;  // MSB
-	tx_buffer[15] = 0x00;
-	tx_buffer[16] = 0x00;
-	tx_buffer[17] = 0x64;  // LSB
+// ============================================================================
+// COMMAND: GET IDENTIFICATION (0x13)
+// ============================================================================
 
-	// Trigger Mode (1 byte) - Software Trigger
-	// Number of Averages (1) - Big Endian Unsigned Int
-	tx_buffer[18] = 0x00;  // MSB
-	tx_buffer[19] = 0x00;
-	tx_buffer[20] = 0x00;
-	tx_buffer[21] = 0x01;  // LSB
+/**
+ * Request device identification and configuration details.
+ * Used to confirm successful communication.
+ */
+void AvaSpec::getIdentification() {
+    uint32_t len = 0;
 
-	memset(&tx_buffer[22], 0, 21);
+    // Command frame structure (6 bytes total)
+    tx_buffer[len++] = 0x20; // [0] Protocol identifier (constant)
+    tx_buffer[len++] = 0x00; // [1] Sequence number (unused)
+    tx_buffer[len++] = 0x02; // [2] Payload length LSB
+    tx_buffer[len++] = 0x00; // [3] Payload length MSB
+    tx_buffer[len++] = 0x13; // [4] Command ID (Get Identification)
+    tx_buffer[len++] = 0x00; // [5] Options (none)
+
+    Serial.println("\nSending command: get_ident");
+    printBuffer(tx_buffer, len);
+
+    __disable_irq();
+    queue_Data_Transfer(txpipe, tx_buffer, tx_size, this);
+    __enable_irq();
+
+    rx_data_ready = false;
+    queue_Data_Transfer(rxpipe, rx_buffer, rx_size, this);
+
+    uint32_t start = millis();
+    while (!rx_data_ready && (millis() - start < 3000)) delay(1);
+
+    if (rx_data_ready) {
+        Serial.println("\nResponse: get_ident");
+        printBuffer(rx_buffer, 92);
+    } else {
+        Serial.println("❌ No response received.");
+    }
+
+    memset(tx_buffer, 0, BUF_SIZE);
+    memset(rx_buffer, 0, BUF_SIZE);
+}
+
+// ============================================================================
+// COMMAND: PREPARE MEASUREMENT (0x05)
+// ============================================================================
+
+/**
+ * Configures spectrometer parameters before measurement.
+ * Each field corresponds to bytes in the Avantes USB protocol specification.
+ */
+void AvaSpec::prepareMeasurement() {
+    memset(tx_buffer, 0, BUF_SIZE);
+
+    // ──────────────────────────────────────────────
+    // Header section (6 bytes)
+    // ──────────────────────────────────────────────
+    tx_buffer[0] = 0x20;  // [0] Protocol start marker
+    tx_buffer[1] = 0x00;  // [1] Sequence number
+    tx_buffer[2] = 0x2B;  // [2] Payload length LSB (43 bytes)
+    tx_buffer[3] = 0x00;  // [3] Payload length MSB
+    tx_buffer[4] = 0x05;  // [4] Command ID: Prepare Measurement
+    tx_buffer[5] = 0x00;  // [5] Reserved / flags (none)
+
+    // ──────────────────────────────────────────────
+    // Pixel range (start and stop pixels)
+    // ──────────────────────────────────────────────
+    tx_buffer[6] = 0x00;  // [6] Start pixel MSB
+    tx_buffer[7] = 0x00;  // [7] Start pixel LSB
+    tx_buffer[8] = 0x07;  // [8] Stop pixel MSB (0x07FF = 2047)
+    tx_buffer[9] = 0xFF;  // [9] Stop pixel LSB
+
+    // ──────────────────────────────────────────────
+    // Integration time (4 bytes, little endian)
+    // Example: 50,000 µs = 0x0000C350
+    // ──────────────────────────────────────────────
+    tx_buffer[10] = 0x50; // [10] LSB
+    tx_buffer[11] = 0xC3; // [11]
+    tx_buffer[12] = 0x00; // [12]
+    tx_buffer[13] = 0x00; // [13] MSB
+
+    // ──────────────────────────────────────────────
+    // Integration delay (4 bytes)
+    // Default = 0 (no delay)
+    // ──────────────────────────────────────────────
+    tx_buffer[14] = 0x00; // [14] LSB
+    tx_buffer[15] = 0x00; // [15]
+    tx_buffer[16] = 0x00; // [16]
+    tx_buffer[17] = 0x00; // [17] MSB
+
+    // ──────────────────────────────────────────────
+    // Number of averages (4 bytes)
+    // Usually 1 for single-shot measurements
+    // ──────────────────────────────────────────────
+    tx_buffer[18] = 0x00; // [18] LSB
+    tx_buffer[19] = 0x00; // [19]
+    tx_buffer[20] = 0x00; // [20]
+    tx_buffer[21] = 0x01; // [21] MSB → 1 average
+
+    // ──────────────────────────────────────────────
+    // Remaining 21 bytes (trigger mode, control, reserved)
+    // All set to 0 for software-triggered mode.
+    // ──────────────────────────────────────────────
+    memset(&tx_buffer[22], 0, 21);
 
     Serial.println("\nSending command: prepare_measurement");
     printBuffer(tx_buffer, 47);
@@ -325,95 +256,238 @@ void AvaSpec::prepareMeasurement()
     queue_Data_Transfer(txpipe, tx_buffer, tx_size, this);
     __enable_irq();
 
-	rx_data_ready = false; 
-	queue_Data_Transfer(rxpipe, rx_buffer, rx_size, this);
+    rx_data_ready = false;
+    queue_Data_Transfer(rxpipe, rx_buffer, rx_size, this);
 
-	int start_time = millis();
-	while(!rx_data_ready && (millis() - start_time < 3000)) {
-		delay(1);
-	}
+    uint32_t start = millis();
+    while (!rx_data_ready && (millis() - start < 3000)) delay(1);
 
-	if (rx_data_ready) {
-		Serial.println("\nfetching response: prep_measurements");
-		printBuffer(rx_buffer, 8);
-	} else {
-		Serial.println("\nNo response received.");
-	}
+    if (rx_data_ready) {
+        Serial.println("\nResponse: prepare_measurement");
+        printBuffer(rx_buffer, 8);
+    } else {
+        Serial.println("❌ No response received.");
+    }
 
-	memset(tx_buffer, 0, BUF_SIZE);
-	memset(rx_buffer, 0, BUF_SIZE);
+    memset(tx_buffer, 0, BUF_SIZE);
+    memset(rx_buffer, 0, BUF_SIZE);
 }
 
+// ============================================================================
+// COMMAND: START MEASUREMENT (0x06)
+// ============================================================================
 
-// Function to stop Measurements on the AvaSpec
-void AvaSpec::stopMeasurement()
-{
+/**
+ * Starts a single measurement.
+ * The device will integrate light and prepare 4106 bytes of output.
+ */
+void AvaSpec::startMeasurement() {
     memset(tx_buffer, 0, BUF_SIZE);
-    tx_buffer[0] = 0x20;
-    tx_buffer[1] = 0x00;
-    tx_buffer[2] = 0x02;
-    tx_buffer[3] = 0x00;
-    tx_buffer[4] = 0x0F;  // **Command ID for stop_measurement**
-    tx_buffer[5] = 0x00;
+    uint32_t len = 0;
 
-    Serial.println("\n🔹 Sending command: stop_measurement");
+    // ──────────────────────────────────────────────
+    // Header section (8 bytes)
+    // ──────────────────────────────────────────────
+    tx_buffer[len++] = 0x20; // [0] Protocol start
+    tx_buffer[len++] = 0x00; // [1] Sequence number
+    tx_buffer[len++] = 0x04; // [2] Payload length LSB (4 bytes)
+    tx_buffer[len++] = 0x00; // [3] Payload length MSB
+    tx_buffer[len++] = 0x06; // [4] Command ID = Start Measurement
+    tx_buffer[len++] = 0x00; // [5] Flags (none)
+    tx_buffer[len++] = 0x00; // [6] Unused
+    tx_buffer[len++] = 0x04; // [7] Measurement count (1 measurement)
+
+    Serial.println("\nSending command: start_measurement");
+    printBuffer(tx_buffer, len);
+
+    __disable_irq();
+    queue_Data_Transfer(txpipe, tx_buffer, tx_size, this);
+    __enable_irq();
+
+    rx_data_ready = false;
+    queue_Data_Transfer(rxpipe, rx_buffer, rx_size, this);
+
+    uint32_t start = millis();
+    while (!rx_data_ready && (millis() - start < 2000)) delay(1);
+
+    if (rx_data_ready) {
+        Serial.println("\nResponse: start_measurement");
+        printBuffer(rx_buffer, 6);
+    } else {
+        Serial.println("⚠️ No ACK received, continuing to data read...");
+    }
+
+    rx_data_ready = false;
+    memset(tx_buffer, 0, BUF_SIZE);
+    memset(rx_buffer, 0, BUF_SIZE);
+
+    // Immediately begin reading the full dataset.
+    readFullMeasurement();
+
+    // After complete capture, acknowledge and log.
+    measurementAcknowledgement();
+}
+
+// ============================================================================
+// COMMAND: STOP MEASUREMENT (0x0F)
+// ============================================================================
+
+/**
+ * Sends a command to halt ongoing measurements.
+ */
+void AvaSpec::stopMeasurement() {
+    memset(tx_buffer, 0, BUF_SIZE);
+
+    // ──────────────────────────────────────────────
+    // Header (6 bytes)
+    // ──────────────────────────────────────────────
+    tx_buffer[0] = 0x20; // [0] Protocol ID
+    tx_buffer[1] = 0x00; // [1] Sequence number
+    tx_buffer[2] = 0x02; // [2] Payload length LSB (2)
+    tx_buffer[3] = 0x00; // [3] Payload length MSB
+    tx_buffer[4] = 0x0F; // [4] Command ID = Stop Measurement
+    tx_buffer[5] = 0x00; // [5] Flags (none)
+
+    Serial.println("\nSending command: stop_measurement");
     printBuffer(tx_buffer, 6);
 
     __disable_irq();
     queue_Data_Transfer(txpipe, tx_buffer, tx_size, this);
     __enable_irq();
 
-	rx_data_ready = false; 
-	queue_Data_Transfer(rxpipe, rx_buffer, rx_size, this);
+    rx_data_ready = false;
+    queue_Data_Transfer(rxpipe, rx_buffer, rx_size, this);
 
-	int start_time = millis();
-	while(!rx_data_ready && (millis() - start_time < 3000)) {
-		delay(1);
-	}
+    uint32_t start = millis();
+    while (!rx_data_ready && (millis() - start < 2000)) delay(1);
 
-	if (rx_data_ready) {
-		Serial.println("\nfetching response: stop_measurement");
-		printBuffer(rx_buffer, 12);
-	} else {
-		Serial.println("\nNo response received.");
-	}
+    if (rx_data_ready) {
+        Serial.println("Response: stop_measurement");
+        printBuffer(rx_buffer, 12);
+    } else {
+        Serial.println("❌ No response.");
+    }
 
-	memset(tx_buffer, 0, BUF_SIZE);
-	memset(rx_buffer, 0, BUF_SIZE);
+    memset(tx_buffer, 0, BUF_SIZE);
+    memset(rx_buffer, 0, BUF_SIZE);
 }
 
-void AvaSpec::measurementAcknowledgement()
-{
-	printBuffer(measurement, MEAS_SIZE);
-	logMeasurement(measurement, sizeof(measurement));
-	// Serial.println("START_TRANSMISSION");  // Send a start marker
-    // Serial.write(measurement, MEAS_SIZE);  // Send raw byte data
-	// Serial.flush();
-    // Serial.println("END_TRANSMISSION");  // Send an end marker
+// ============================================================================
+// COMMAND: READ FULL MEASUREMENT DATA
+// ============================================================================
 
-	// uint32_t len = 0; 
-	tx_buffer[0] = 0x20;
-    tx_buffer[1] = 0x00;
-    tx_buffer[2] = 0x02;
-    tx_buffer[3] = 0x00;
-    tx_buffer[4] = 0xC0;  // **Command ID for ackwnowledgement**
-    tx_buffer[5] = 0x00;
+/**
+ * Reads the complete 4106-byte dataset from the spectrometer
+ * (10-byte header + 4096-byte pixel intensity data).
+ * 
+ * The AvaSpec sends data in 512-byte USB bulk packets. This function
+ * assembles each packet into the global measurement buffer until all
+ * bytes are received. Serial progress messages indicate read status.
+ */
+void AvaSpec::readFullMeasurement() {
+    const uint16_t totalBytes = 4106;   // Total bytes per measurement
+    uint16_t bytesReceived = 0;         // Running count
+    uint8_t tempBuf[512];               // Temporary USB RX buffer
 
-	Serial.println("\n🔹 Sending measurement acknowledgement:");
+    // Clear any previous data before starting a new read
+    memset(measurement, 0, totalBytes);
+    Serial.println("\n📡 Reading full 4106-byte measurement...");
+
+    // Continue requesting data until all bytes are received
+    while (bytesReceived < totalBytes) {
+        memset(tempBuf, 0, sizeof(tempBuf));
+
+        // Queue USB transfer for next 512-byte packet
+        queue_Data_Transfer(rxpipe, tempBuf, sizeof(tempBuf), this);
+
+        // Wait until transfer completes or times out (3 s)
+        uint32_t start = millis();
+        while (!rx_data_ready && (millis() - start < 3000)) {
+            delay(1);
+        }
+
+        rx_data_ready = false;
+
+        // Copy received bytes into the global buffer
+        uint16_t n = min<uint16_t>(512, totalBytes - bytesReceived);
+        memcpy(&measurement[bytesReceived], tempBuf, n);
+        bytesReceived += n;
+
+        Serial.printf("Chunk received: %u / %u bytes\n", bytesReceived, totalBytes);
+    }
+
+    Serial.println("✅ Full 4106 bytes received.\n");
+}
+
+// ============================================================================
+// COMMAND: MEASUREMENT ACKNOWLEDGEMENT (0xC0)
+// ============================================================================
+
+/**
+ * Acknowledges receipt of the measurement to the device,
+ * logs the data, writes a CSV file of the spectrum, and
+ * resets internal state variables.
+ */
+void AvaSpec::measurementAcknowledgement() {
+    // ──────────────────────────────────────────────
+    // Step 1: Write spectrum to CSV (Pixel,Intensity)
+    // ──────────────────────────────────────────────
+    Serial.println("\nWriting spectrum.csv to SD card...");
+
+    File csvFile = SD.open("/spectrum.csv", FILE_WRITE);
+    if (csvFile) {
+        // Write CSV header
+        csvFile.println("Pixel,Intensity");
+
+        // Skip the first 10 header bytes (data begins at byte 10)
+        for (int i = 10; i < MEAS_SIZE; i += 2) {
+            int pixelIndex = (i - 10) / 2;                     // Pixel index (0–2047)
+            uint16_t intensity = measurement[i] | (measurement[i + 1] << 8);  // 16-bit LE value
+            csvFile.print(pixelIndex);
+            csvFile.print(",");
+            csvFile.println(intensity);
+        }
+
+        csvFile.flush();
+        csvFile.close();
+        Serial.println("✅ spectrum.csv successfully written to SD card.");
+    } else {
+        Serial.println("❌ Failed to open spectrum.csv for writing!");
+    }
+
+    // ──────────────────────────────────────────────
+    // Step 2: Log the raw measurement to SD (hex dump)
+    // ──────────────────────────────────────────────
+    Serial.println("Logging raw measurement data (hex)...");
+    logMeasurement(measurement, sizeof(measurement));
+
+    // ──────────────────────────────────────────────
+    // Step 3: Build and send measurement acknowledgement (0xC0)
+    // ──────────────────────────────────────────────
+    memset(tx_buffer, 0, BUF_SIZE);
+    tx_buffer[0] = 0x20; // [0] Protocol ID
+    tx_buffer[1] = 0x00; // [1] Sequence number
+    tx_buffer[2] = 0x02; // [2] Payload length LSB (2)
+    tx_buffer[3] = 0x00; // [3] Payload length MSB
+    tx_buffer[4] = 0xC0; // [4] Command ID = Acknowledge Measurement
+    tx_buffer[5] = 0x00; // [5] Flags (none)
+
+    Serial.println("\nSending measurement acknowledgement:");
     printBuffer(tx_buffer, 6);
 
-	__disable_irq();
+    __disable_irq();
     queue_Data_Transfer(txpipe, tx_buffer, tx_size, this);
     __enable_irq();
-	delay(10);
 
-	memset(tx_buffer, 0, BUF_SIZE); 
+    delay(10);
+    memset(tx_buffer, 0, BUF_SIZE);
 
-	messageFound = false; 
-	measAmount = 0;
-	appendIndex = 0;
+    // ──────────────────────────────────────────────
+    // Step 4: Reset internal state for next cycle
+    // ──────────────────────────────────────────────
+    messageFound = false;
+    measAmount = 0;
+    appendIndex = 0;
+
+    Serial.println("Measurement acknowledgement complete.\n");
 }
-
-
-
-

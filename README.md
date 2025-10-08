@@ -34,9 +34,12 @@ WIP...
 - [x] Validate Teensy and Spectrometer USB Ports can connect.
 - [x] Attempt Identification Command & Response to validate communication.
 - [x] Attempt Measurement Commands and read the "Unsolicitated" data messages, validating measurement usage.
-- [ ] Be able to read all 10 + 4096 bytes of data from a full measurement.
-- [ ] Graph data by sending to computer Serial Port to be copied to .csv/.txt and graphed through Matlab to see the spectrum. 
-- [ ] Write data into relevant storage, i.e. SD Card.
+- [x] Be able to read all 10 + 4096 bytes of data from a full measurement.
+- [x] Graph data by sending to computer Serial Port to be copied to .csv/.txt and graphed through Matlab to see the spectrum. 
+- [x] Write data into relevant storage, i.e. SD Card.
+- [ ] Define the Payload-to-Bus Software ICD fields for packetized CSV transmission.
+- [ ] Add command handlers for remote “Start/Stop/Config/...” through the spacecraft command bus.
+- [ ] Interface into flat-sat.
 - [ ] ...
 - [ ] ...
 - [ ] Integrate software to Spacecraft Bus Software.
