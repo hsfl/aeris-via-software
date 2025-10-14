@@ -54,6 +54,11 @@ bool AvaSpec::claim(Device_t *dev, int type, const uint8_t *descriptors, uint32_
 
     Serial.println("✅ AvaSpec Mini device found and claimed.");
 
+    Serial.printf("Descriptor length: %lu\n", len);
+    Serial.printf("Parsed endpoints — OUT:0x%02X  IN:0x%02X\n", descriptors[11], descriptors[18]);
+    Serial.println("✅ Pipes about to be created...");
+
+
     // Extract endpoint information from descriptor.
     tx_ep = descriptors[11];   // OUT endpoint address
     rx_ep = descriptors[18];   // IN endpoint address
@@ -68,6 +73,8 @@ bool AvaSpec::claim(Device_t *dev, int type, const uint8_t *descriptors, uint32_
     // Assign static callback functions
     rxpipe->callback_function = rx_callback;
     txpipe->callback_function = tx_callback;
+
+    Serial.println("✅ USB pipes configured and callbacks registered.");
 
     return true;
 }
@@ -89,6 +96,16 @@ void AvaSpec::printBuffer(uint8_t* buf, size_t n) {
     }
     Serial.println();
 }
+
+/**
+ * Wait helper — blocks until rx_data_ready or timeout.
+ */
+bool AvaSpec::waitForData(uint32_t timeout_ms) {
+    uint32_t start = millis();
+    while (!rx_data_ready && (millis() - start < timeout_ms)) delay(1);
+    return rx_data_ready;
+}
+
 
 // ============================================================================
 // USB TRANSFER CALLBACKS
@@ -170,18 +187,20 @@ void AvaSpec::getIdentification() {
     queue_Data_Transfer(txpipe, tx_buffer, tx_size, this);
     __enable_irq();
 
+    delay(25); // allow device to process before reading
+
     rx_data_ready = false;
     queue_Data_Transfer(rxpipe, rx_buffer, rx_size, this);
 
     uint32_t start = millis();
-    while (!rx_data_ready && (millis() - start < 3000)) delay(1);
-
-    if (rx_data_ready) {
+    
+    if (waitForData(3000)) {
         Serial.println("\nResponse: get_ident");
         printBuffer(rx_buffer, 92);
     } else {
-        Serial.println("❌ No response received.");
+        Serial.println("❌ No response received (timeout).");
     }
+
 
     memset(tx_buffer, 0, BUF_SIZE);
     memset(rx_buffer, 0, BUF_SIZE);
@@ -218,11 +237,11 @@ void AvaSpec::prepareMeasurement() {
 
     // ──────────────────────────────────────────────
     // Integration time (4 bytes, little endian)
-    // Example: 50,000 µs = 0x0000C350
+    // Example: 200,000 µs = 0x00030D40
     // ──────────────────────────────────────────────
-    tx_buffer[10] = 0x50; // [10] LSB
-    tx_buffer[11] = 0xC3; // [11]
-    tx_buffer[12] = 0x00; // [12]
+    tx_buffer[10] = 0x40; // [10] LSB
+    tx_buffer[11] = 0x0D; // [11]
+    tx_buffer[12] = 0x03; // [12]
     tx_buffer[13] = 0x00; // [13] MSB
 
     // ──────────────────────────────────────────────
@@ -248,6 +267,8 @@ void AvaSpec::prepareMeasurement() {
     // All set to 0 for software-triggered mode.
     // ──────────────────────────────────────────────
     memset(&tx_buffer[22], 0, 21);
+    tx_buffer[22] = 0x01;  // enable software trigger
+
 
     Serial.println("\nSending command: prepare_measurement");
     printBuffer(tx_buffer, 47);
@@ -256,18 +277,19 @@ void AvaSpec::prepareMeasurement() {
     queue_Data_Transfer(txpipe, tx_buffer, tx_size, this);
     __enable_irq();
 
+    delay(25);
+
     rx_data_ready = false;
     queue_Data_Transfer(rxpipe, rx_buffer, rx_size, this);
 
     uint32_t start = millis();
-    while (!rx_data_ready && (millis() - start < 3000)) delay(1);
-
-    if (rx_data_ready) {
+    if (waitForData(3000)) {
         Serial.println("\nResponse: prepare_measurement");
         printBuffer(rx_buffer, 8);
     } else {
-        Serial.println("❌ No response received.");
+        Serial.println("❌ No response received (timeout).");
     }
+
 
     memset(tx_buffer, 0, BUF_SIZE);
     memset(rx_buffer, 0, BUF_SIZE);
@@ -304,18 +326,21 @@ void AvaSpec::startMeasurement() {
     queue_Data_Transfer(txpipe, tx_buffer, tx_size, this);
     __enable_irq();
 
+    delay(50);
+
     rx_data_ready = false;
     queue_Data_Transfer(rxpipe, rx_buffer, rx_size, this);
 
     uint32_t start = millis();
     while (!rx_data_ready && (millis() - start < 2000)) delay(1);
 
-    if (rx_data_ready) {
+    if (waitForData(2000)) {
         Serial.println("\nResponse: start_measurement");
         printBuffer(rx_buffer, 6);
     } else {
         Serial.println("⚠️ No ACK received, continuing to data read...");
     }
+
 
     rx_data_ready = false;
     memset(tx_buffer, 0, BUF_SIZE);
@@ -355,18 +380,19 @@ void AvaSpec::stopMeasurement() {
     queue_Data_Transfer(txpipe, tx_buffer, tx_size, this);
     __enable_irq();
 
+    delay(25);
+
     rx_data_ready = false;
     queue_Data_Transfer(rxpipe, rx_buffer, rx_size, this);
 
     uint32_t start = millis();
-    while (!rx_data_ready && (millis() - start < 2000)) delay(1);
-
-    if (rx_data_ready) {
+    if (waitForData(2000)) {
         Serial.println("Response: stop_measurement");
         printBuffer(rx_buffer, 12);
     } else {
-        Serial.println("❌ No response.");
+        Serial.println("❌ No response (timeout).");
     }
+
 
     memset(tx_buffer, 0, BUF_SIZE);
     memset(rx_buffer, 0, BUF_SIZE);

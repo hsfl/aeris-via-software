@@ -164,6 +164,13 @@ private:
      * This is automatically invoked by startMeasurement().
      */
     void readFullMeasurement();
+
+    /**
+     * Wait helper — blocks until rx_data_ready or timeout.
+     * @param timeout_ms Maximum time to wait in milliseconds
+     * @return True if data became ready, false if timeout expired
+     */
+    bool waitForData(uint32_t timeout_ms);
 };
 
 #endif // __AvaSpec_h_
