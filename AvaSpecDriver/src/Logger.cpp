@@ -1,3 +1,12 @@
+/**
+ * @file Logger.cpp
+ * @brief Implementation of the SD card logging module.
+ *
+ * This module provides functions for writing measurement data and status
+ * messages to the Teensy 4.1's built-in SD card. All logging operations
+ * are immediately flushed to ensure data integrity during power cycles.
+ */
+
 #include <Logger.h>
 #include <Arduino.h>
 

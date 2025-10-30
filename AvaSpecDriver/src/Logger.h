@@ -1,3 +1,12 @@
+/**
+ * @file Logger.h
+ * @brief Lightweight SD card logging utility for the AERIS payload firmware.
+ *
+ * This module provides minimal but reliable functions for recording
+ * measurement data and diagnostic messages to the Teensy 4.1's built-in SD card.
+ * All writes are immediately flushed to minimize data loss during power cycles.
+ */
+
 #ifndef __Logger_h_
 #define __Logger_h_
 
@@ -5,18 +14,13 @@
 #include <SD.h>
 
 /**
- * @file Logger.h
- * @brief Lightweight SD card logging utility for the AERIS payload firmware.
- *
- * This module provides minimal but reliable functions for recording
- * measurement data and diagnostic messages to the Teensy 4.1’s built-in SD card.
- *
+ * @details
  * The intent is to ensure that all mission-critical information (telemetry,
  * sensor readouts, and event traces) can be recovered even if telemetry
  * transmission is interrupted. All writes are immediately flushed to disk to
  * minimize the risk of data loss during resets or power cycling.
  *
- * Files are stored on the Teensy’s internal SD interface (`BUILTIN_SDCARD`).
+ * Files are stored on the Teensy's internal SD interface (`BUILTIN_SDCARD`).
  * Each log file is opened in append/write mode when initialized, and all
  * functions in this module operate on the same global `logFile` handle.
  *

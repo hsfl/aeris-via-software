@@ -1,3 +1,12 @@
+/**
+ * @file AvaSpec.h
+ * @brief USB Host driver interface for the Avantes AvaSpec-Mini2048CL spectrometer.
+ *
+ * This header defines the AvaSpec driver class which manages USB communication,
+ * command sequencing, and data reception for the spectrometer. All high-level
+ * measurement functions and USB protocol details are encapsulated here.
+ */
+
 #ifndef __AvaSpec_h_
 #define __AvaSpec_h_
 
@@ -73,6 +82,12 @@ public:
 
     /** Utility to print a buffer in hexadecimal (debugging). */
     void printBuffer(uint8_t* buf, size_t n);
+
+    /**
+     * Get pointer to the measurement buffer.
+     * @return Pointer to the 4106-byte measurement buffer
+     */
+    uint8_t* getMeasurementBuffer() { return measurement; }
 
 protected:
     // ──────────────────────────────────────────────

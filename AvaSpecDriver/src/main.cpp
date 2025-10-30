@@ -4,24 +4,28 @@
  *
  * This firmware runs on the Teensy 4.1 microcontroller and acts as the
  * controller for the Avantes AvaSpec-Mini2048CL spectrometer. It handles
- * initialization, measurement sequencing, and data logging to the onboard SD card.
+ * initialization, measurement sequencing, data logging to SD card, and
+ * transmission to the Artemis OBC via UART.
  *
  * Functional overview:
  *  1. Initialize Serial for debugging output.
  *  2. Initialize SD card and open a measurement log file.
- *  3. Initialize the USB host interface and claim the AvaSpec spectrometer.
- *  4. In each measurement cycle:
+ *  3. Initialize UART communication to Artemis OBC.
+ *  4. Initialize the USB host interface and claim the AvaSpec spectrometer.
+ *  5. In each measurement cycle:
  *      - Request device identification (connectivity check).
  *      - Configure acquisition parameters.
  *      - Trigger a single measurement.
  *      - Continuously handle any unsolicited data.
  *      - Log all received data to the SD card.
- *  5. Gracefully stop acquisition, close files, and wait for the next run.
+ *      - Transmit measurement data to Artemis OBC via UART.
+ *  6. Gracefully stop acquisition, close files, and wait for the next run.
  */
 
 #include <Arduino.h>
 #include "USBHost_t36.h"
 #include "AvaSpec.h"
+#include "OBCBridge.h"
 #include <iostream>
 #include <vector>
 #include <SD.h>
@@ -37,9 +41,12 @@ USBHost myusb;
 // AvaSpec spectrometer driver instance (attached to the host)
 AvaSpec myavaspec(myusb);
 
-// Session flags (future use)
+// OBC bridge instance for internal data connection to Artemis OBC
+OBCBridge obcBridge;
+
+// Session flags
 bool useSD   = false;
-bool useFile = false;
+bool useOBC  = false;
 
 // ============================================================================
 // SETUP
@@ -48,7 +55,8 @@ bool useFile = false;
 /**
  * @brief Arduino setup routine executed once at boot.
  *
- * Initializes the serial interface, SD logger, and USB host controller.
+ * Initializes the serial interface, SD logger, UART communication,
+ * and USB host controller.
  */
 void setup() {
     Serial.begin(115200);
@@ -57,17 +65,29 @@ void setup() {
     Serial.println();
     Serial.println("────────────────────────────────────────────");
     Serial.println("AERIS VIA Payload Firmware Starting...");
+    Serial.println("Version 2.0 - UART Communication to Artemis OBC");
     Serial.println("────────────────────────────────────────────");
 
     // Initialize SD card logging
     if (initializeFile("/measurements.txt")) {
         Serial.println("✅ SD Card initialized and log file opened.");
         logString("=== VIA session started ===");
+        useSD = true;
     } else {
         Serial.println("⚠️ SD Card initialization failed — proceeding without logging.");
     }
 
+    // Initialize OBC bridge to Artemis OBC
+    Serial.println();
+    if (obcBridge.begin()) {
+        Serial.println("✅ OBC bridge to Artemis initialized.");
+        useOBC = true;
+    } else {
+        Serial.println("⚠️ OBC bridge initialization failed — proceeding without OBC link.");
+    }
+
     // Initialize USB Host stack
+    Serial.println();
     myusb.begin();
     Serial.println("✅ USB Host controller initialized.");
 }
@@ -117,10 +137,32 @@ void loop() {
     myavaspec.measurementAcknowledgement();
     myavaspec.stopMeasurement();
 
-    // Step 6: Mark end of session and close the SD file
-    logString("=== VIA session complete ===");
-    closeLogFile();
-    Serial.println("📁 Log file closed and measurement session complete.");
+    // Step 6: Transmit measurement data to Artemis OBC via bridge (if enabled)
+    if (useOBC) {
+        Serial.println();
+        Serial.println("📡 Transmitting measurement to Artemis OBC...");
+
+        uint8_t* measurementData = myavaspec.getMeasurementBuffer();
+
+        if (obcBridge.transmitMeasurement(measurementData)) {
+            Serial.println("✅ OBC bridge transmission complete.");
+            if (useSD) {
+                logString("OBC bridge transmission successful.");
+            }
+        } else {
+            Serial.println("❌ OBC bridge transmission failed!");
+            if (useSD) {
+                logString("OBC bridge transmission FAILED.");
+            }
+        }
+    }
+
+    // Step 7: Mark end of session and close the SD file
+    if (useSD) {
+        logString("=== VIA session complete ===");
+        closeLogFile();
+        Serial.println("📁 Log file closed and measurement session complete.");
+    }
 
     // Delay before restarting loop or power cycling (100 seconds)
     delay(100000);

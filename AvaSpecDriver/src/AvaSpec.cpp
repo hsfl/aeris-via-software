@@ -1,3 +1,12 @@
+/**
+ * @file AvaSpec.cpp
+ * @brief Implementation of the AvaSpec USB Host driver.
+ *
+ * This driver manages communication with the Avantes AvaSpec-Mini2048CL
+ * spectrometer over USB. It handles device enumeration, command transmission,
+ * measurement data reception, and SD card logging.
+ */
+
 #include <Arduino.h>
 #include "USBHost_t36.h"
 #include "AvaSpec.h"
