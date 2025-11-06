@@ -1,12 +1,3 @@
-/**
- * @file AvaSpec.cpp
- * @brief Implementation of the AvaSpec USB Host driver.
- *
- * This driver manages communication with the Avantes AvaSpec-Mini2048CL
- * spectrometer over USB. It handles device enumeration, command transmission,
- * measurement data reception, and SD card logging.
- */
-
 #include <Arduino.h>
 #include "USBHost_t36.h"
 #include "AvaSpec.h"
@@ -40,6 +31,7 @@ void AvaSpec::init() {
     messageFound  = false;   // True when valid measurement found
     measAmount    = 0;       // Legacy count of RX chunks
     appendIndex   = 0;       // Index offset for measurement buffer
+    measurementCounter = 0;  // Counter for unique CSV filenames
 
     // Clear the measurement buffer (safety against stale data)
     memset(measurement, 0, MEAS_SIZE);
@@ -422,7 +414,6 @@ void AvaSpec::stopMeasurement() {
 void AvaSpec::readFullMeasurement() {
     const uint16_t totalBytes = 4106;   // Total bytes per measurement
     uint16_t bytesReceived = 0;         // Running count
-    uint8_t tempBuf[512];               // Temporary USB RX buffer
 
     // Clear any previous data before starting a new read
     memset(measurement, 0, totalBytes);
@@ -430,10 +421,13 @@ void AvaSpec::readFullMeasurement() {
 
     // Continue requesting data until all bytes are received
     while (bytesReceived < totalBytes) {
-        memset(tempBuf, 0, sizeof(tempBuf));
+        memset(rx_buffer, 0, BUF_SIZE);
 
         // Queue USB transfer for next 512-byte packet
-        queue_Data_Transfer(rxpipe, tempBuf, sizeof(tempBuf), this);
+        rx_data_ready = false;
+        __disable_irq();
+        queue_Data_Transfer(rxpipe, rx_buffer, rx_size, this);
+        __enable_irq();
 
         // Wait until transfer completes or times out (3 s)
         uint32_t start = millis();
@@ -441,11 +435,9 @@ void AvaSpec::readFullMeasurement() {
             delay(1);
         }
 
-        rx_data_ready = false;
-
         // Copy received bytes into the global buffer
         uint16_t n = min<uint16_t>(512, totalBytes - bytesReceived);
-        memcpy(&measurement[bytesReceived], tempBuf, n);
+        memcpy(&measurement[bytesReceived], rx_buffer, n);
         bytesReceived += n;
 
         Serial.printf("Chunk received: %u / %u bytes\n", bytesReceived, totalBytes);
@@ -467,9 +459,18 @@ void AvaSpec::measurementAcknowledgement() {
     // ──────────────────────────────────────────────
     // Step 1: Write spectrum to CSV (Pixel,Intensity)
     // ──────────────────────────────────────────────
-    Serial.println("\nWriting spectrum.csv to SD card...");
+    // Increment measurement counter
+    measurementCounter++;
 
-    File csvFile = SD.open("/spectrum.csv", FILE_WRITE);
+    // Create unique filename (e.g., spectrum_0001.csv, spectrum_0002.csv, etc.)
+    char csvFilename[32];
+    snprintf(csvFilename, sizeof(csvFilename), "/spectrum_%04lu.csv", measurementCounter);
+
+    Serial.print("\nWriting ");
+    Serial.print(csvFilename);
+    Serial.println(" to SD card...");
+
+    File csvFile = SD.open(csvFilename, FILE_WRITE);
     if (csvFile) {
         // Write CSV header
         csvFile.println("Pixel,Intensity");
@@ -485,9 +486,13 @@ void AvaSpec::measurementAcknowledgement() {
 
         csvFile.flush();
         csvFile.close();
-        Serial.println("✅ spectrum.csv successfully written to SD card.");
+        Serial.print("✅ ");
+        Serial.print(csvFilename);
+        Serial.println(" successfully written to SD card.");
     } else {
-        Serial.println("❌ Failed to open spectrum.csv for writing!");
+        Serial.print("❌ Failed to open ");
+        Serial.print(csvFilename);
+        Serial.println(" for writing!");
     }
 
     // ──────────────────────────────────────────────
@@ -525,4 +530,3 @@ void AvaSpec::measurementAcknowledgement() {
     appendIndex = 0;
 
     Serial.println("Measurement acknowledgement complete.\n");
-}
