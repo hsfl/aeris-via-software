@@ -1,4 +1,4 @@
-# aeris-via-software
+# AERIS / Via Software
 
 ## Brief Overview
 This is the code repository for the VIA (Visual Imaging and Analysis) Payload firmware for the AERIS mission. The VIA payload utilizes an Avantes AvaSpec-Mini2048CL spectrometer connected to a Teensy 4.1 microcontroller acting as a USB host.
@@ -39,7 +39,7 @@ Teensy 4.1 (VIA Payload)
 
 To get relevant data, continue to "Getting Data" section.
 
-## Getting Data
+## Getting Data with Teensy 4.1
 
 ### Hardware Connections
 1. **AvaSpec Spectrometer**: Connect to Teensy 4.1 via USB host port
@@ -82,6 +82,14 @@ Every 100 seconds, the firmware:
 - **Serial (USB)**: Debug output at 115200 baud
 - **Serial1 (UART)**: OBC bridge at 115200 baud (TX=1, RX=0)
 - **SD Card**: Built-in Teensy 4.1 SD interface (BUILTIN_SDCARD)
+
+
+## Getting Data with AvaSoft
+* Install AvaSoft software https://www.avantes.com/products/software/avasoft/
+* Connect the VIA USB port directly to the PC
+* Start collecting data and zoom in
+
+<img width="1920" height="1080" alt="Screenshot 2025-11-05 193505" src="https://github.com/user-attachments/assets/379d43e9-8094-4de0-baa0-14b7b35252b6" />
 
 ## Development Roadmap
 
