@@ -4,10 +4,12 @@
  *
  * This module handles the internal bridge between the VIA payload Teensy
  * and the Artemis OBC (RPi). Measurement data is formatted as CSV and
- * transmitted over UART for radio relay.
+ * transmitted over UART for radio relay. Also supports bidirectional
+ * communication for file transfer and command processing.
  */
 
 #include "OBCBridge.h"
+#include <SD.h>
 
 // ============================================================================
 // CONSTRUCTOR
@@ -149,6 +151,245 @@ bool OBCBridge::sendMessage(const char* message) {
 
     Serial1.println(message);
     Serial1.flush();
+
+    return true;
+}
+
+// ============================================================================
+// COMMAND RECEPTION AND PROCESSING
+// ============================================================================
+
+/**
+ * @brief Check for incoming commands from PC/OBC via UART.
+ *
+ * Polls Serial1 for incoming data and processes complete command lines.
+ * Commands are expected to be newline-terminated strings.
+ *
+ * @return true if a command was received and processed.
+ */
+bool OBCBridge::checkForCommands() {
+    if (!Serial1) {
+        return false;
+    }
+
+    // Check if data is available
+    if (Serial1.available() > 0) {
+        // Read command string until newline
+        String cmdString = Serial1.readStringUntil('\n');
+        cmdString.trim();  // Remove whitespace
+
+        if (cmdString.length() > 0) {
+            Serial.print("RX command: ");
+            Serial.println(cmdString);
+
+            // Process the command
+            processCommand(cmdString.c_str());
+            return true;
+        }
+    }
+
+    return false;
+}
+
+/**
+ * @brief Process a received command string.
+ *
+ * Parses the command and executes the appropriate action.
+ *
+ * @param cmd Command string to process.
+ */
+void OBCBridge::processCommand(const char* cmd) {
+    String cmdStr(cmd);
+    cmdStr.toUpperCase();  // Case-insensitive commands
+
+    if (cmdStr.startsWith("GET_FILE ")) {
+        // Extract filename after "GET_FILE "
+        String filename = String(cmd).substring(9);
+        filename.trim();
+
+        Serial.print("File transfer request: ");
+        Serial.println(filename);
+
+        if (!transferFile(filename.c_str())) {
+            Serial1.println("ERROR: File transfer failed");
+        }
+    }
+    else if (cmdStr.startsWith("LIST_FILES")) {
+        Serial.println("Listing SD card files...");
+        if (!listFiles()) {
+            Serial1.println("ERROR: Failed to list files");
+        }
+    }
+    else {
+        Serial.print("Unknown command: ");
+        Serial.println(cmd);
+        Serial1.println("ERROR: Unknown command");
+    }
+}
+
+// ============================================================================
+// FILE TRANSFER FUNCTIONS
+// ============================================================================
+
+/**
+ * @brief Transfer a file from SD card to PC/OBC via UART.
+ *
+ * Reads the specified file from the SD card and transmits it in chunks
+ * over UART with protocol markers for reliable reception.
+ *
+ * @param filename Name of the file on SD card to transfer.
+ * @return true if transfer successful, false otherwise.
+ */
+bool OBCBridge::transferFile(const char* filename) {
+    if (!Serial1) {
+        Serial.println("❌ UART not initialized!");
+        return false;
+    }
+
+    // Check if SD card is available
+    if (!SD.begin(BUILTIN_SDCARD)) {
+        Serial.println("❌ SD Card not available!");
+        Serial1.println("ERROR: SD card not available");
+        return false;
+    }
+
+    // Open the file
+    File dataFile = SD.open(filename, FILE_READ);
+    if (!dataFile) {
+        Serial.print("❌ Failed to open file: ");
+        Serial.println(filename);
+        Serial1.println("ERROR: File not found");
+        return false;
+    }
+
+    // Get file size
+    size_t fileSize = dataFile.size();
+
+    Serial.println("──────────────────────────────────────────────");
+    Serial.print("📁 Transferring file: ");
+    Serial.println(filename);
+    Serial.print("   Size: ");
+    Serial.print(fileSize);
+    Serial.println(" bytes");
+
+    // Send file transfer start marker
+    Serial1.println("FILE_START");
+    Serial1.println(filename);
+    Serial1.println(fileSize);
+
+    // Transfer file in chunks
+    uint8_t buffer[FILE_CHUNK_SIZE];
+    size_t bytesTransferred = 0;
+    size_t lastProgress = 0;
+
+    while (dataFile.available()) {
+        // Read chunk
+        size_t bytesRead = dataFile.read(buffer, FILE_CHUNK_SIZE);
+
+        // Send chunk as hex-encoded data for reliability
+        for (size_t i = 0; i < bytesRead; i++) {
+            if (buffer[i] < 0x10) Serial1.print("0");
+            Serial1.print(buffer[i], HEX);
+        }
+
+        bytesTransferred += bytesRead;
+
+        // Progress indicator every 10%
+        size_t progress = (bytesTransferred * 100) / fileSize;
+        if (progress >= lastProgress + 10) {
+            Serial.print("   Progress: ");
+            Serial.print(progress);
+            Serial.println("%");
+            lastProgress = progress;
+        }
+    }
+
+    // Send end marker
+    Serial1.println();
+    Serial1.println("FILE_END");
+    Serial1.flush();
+
+    // Close file
+    dataFile.close();
+
+    Serial.println("✅ File transfer complete.");
+    Serial.print("   Total bytes sent: ");
+    Serial.println(bytesTransferred);
+    Serial.println("──────────────────────────────────────────────");
+
+    return true;
+}
+
+/**
+ * @brief List all files on the SD card root directory.
+ *
+ * Sends a list of files with their sizes over UART.
+ *
+ * @return true if successful, false otherwise.
+ */
+bool OBCBridge::listFiles() {
+    if (!Serial1) {
+        Serial.println("❌ UART not initialized!");
+        return false;
+    }
+
+    // Check if SD card is available
+    if (!SD.begin(BUILTIN_SDCARD)) {
+        Serial.println("❌ SD Card not available!");
+        Serial1.println("ERROR: SD card not available");
+        return false;
+    }
+
+    // Open root directory
+    File root = SD.open("/");
+    if (!root) {
+        Serial.println("❌ Failed to open root directory!");
+        Serial1.println("ERROR: Failed to open directory");
+        return false;
+    }
+
+    Serial.println("──────────────────────────────────────────────");
+    Serial.println("📁 SD Card File Listing:");
+
+    // Send list start marker
+    Serial1.println("LIST_START");
+
+    int fileCount = 0;
+
+    // Iterate through files
+    File entry = root.openNextFile();
+    while (entry) {
+        if (!entry.isDirectory()) {
+            String fileName = entry.name();
+            size_t fileSize = entry.size();
+
+            // Send to UART
+            Serial1.print(fileName);
+            Serial1.print(",");
+            Serial1.println(fileSize);
+
+            // Print to debug console
+            Serial.print("   ");
+            Serial.print(fileName);
+            Serial.print(" (");
+            Serial.print(fileSize);
+            Serial.println(" bytes)");
+
+            fileCount++;
+        }
+        entry.close();
+        entry = root.openNextFile();
+    }
+
+    // Send list end marker
+    Serial1.println("LIST_END");
+    Serial1.flush();
+
+    root.close();
+
+    Serial.print("Total files: ");
+    Serial.println(fileCount);
+    Serial.println("──────────────────────────────────────────────");
 
     return true;
 }

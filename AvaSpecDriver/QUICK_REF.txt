@@ -1,0 +1,108 @@
+╔══════════════════════════════════════════════════════════════════╗
+║         VIA SPECTROMETER COMMAND QUICK REFERENCE                 ║
+╚══════════════════════════════════════════════════════════════════╝
+
+HARDWARE SETUP
+──────────────────────────────────────────────────────────────────
+  1. AvaSpec USB → Teensy 4.1 USB Host (5-pin header)
+  2. Teensy micro-USB → Computer
+  3. SD card inserted (optional)
+  4. Open serial terminal at 115200 baud
+
+COMMANDS
+──────────────────────────────────────────────────────────────────
+  help              Show command help
+  measure (or m)    Take one measurement
+  identify (or id)  Query device info
+  auto [sec]        Start auto mode (default: 100s)
+  stop              Stop auto mode
+  status            Show system status
+  sd-on             Enable SD logging
+  sd-off            Disable SD logging
+
+QUICK START
+──────────────────────────────────────────────────────────────────
+  1. Upload firmware:
+     cd AvaSpecDriver && pio run --target upload
+
+  2. Open serial terminal:
+     screen /dev/ttyACM0 115200
+     (or PuTTY on Windows COM port)
+
+  3. Take a measurement:
+     VIA> measure
+
+  4. Start auto mode:
+     VIA> auto 60    (measure every 60 seconds)
+
+  5. Stop auto mode:
+     VIA> stop
+
+EXAMPLES
+──────────────────────────────────────────────────────────────────
+  Single measurement:
+    VIA> measure
+
+  Auto mode (every 30 seconds):
+    VIA> auto 30
+
+  Check status:
+    VIA> status
+
+  Enable logging, then measure:
+    VIA> sd-on
+    VIA> measure
+
+  Stop auto measurements:
+    VIA> stop
+
+TERMINAL PROGRAMS
+──────────────────────────────────────────────────────────────────
+  Linux/Mac:
+    screen /dev/ttyACM0 115200
+    minicom -D /dev/ttyACM0 -b 115200
+    pio device monitor -b 115200
+
+  Windows:
+    PuTTY: COM port, 115200 baud
+    Arduino Serial Monitor: 115200 baud
+
+DATA FILES
+──────────────────────────────────────────────────────────────────
+  Files saved on SD card:
+    meas_0001.txt   - First measurement
+    meas_0002.txt   - Second measurement
+    spectrum_0001.csv - CSV format (Pixel,Intensity)
+    ...
+
+  Download files:
+    python3 file_transfer.py /dev/ttyACM0 list
+    python3 file_transfer.py /dev/ttyACM0 get meas_0001.txt
+
+TROUBLESHOOTING
+──────────────────────────────────────────────────────────────────
+  No serial port?
+    Linux: ls /dev/ttyACM*
+    Windows: Check Device Manager
+
+  Permission denied?
+    sudo chmod 666 /dev/ttyACM0
+    (or add user to dialout group)
+
+  No spectrometer detected?
+    - Check USB Host cable
+    - Verify 5V power
+    - Re-plug spectrometer
+
+  Commands not working?
+    - Verify 115200 baud rate
+    - Check newline terminator setting
+    - Type 'help' to test connection
+
+DOCUMENTATION
+──────────────────────────────────────────────────────────────────
+  Full guide:     CONSOLE_GUIDE.md
+  File transfer:  FILE_TRANSFER_README.md
+  Quick start:    QUICK_START.md
+
+VERSION: 3.0 (Command Console Mode)

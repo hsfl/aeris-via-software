@@ -83,6 +83,48 @@ public:
      */
     bool sendMessage(const char* message);
 
+    /**
+     * @brief Check for incoming commands from PC/OBC via UART.
+     *
+     * Polls Serial1 for incoming data and processes commands.
+     * Should be called regularly in the main loop.
+     *
+     * Supported commands:
+     *  - "GET_FILE <filename>" - Transfer a file from SD card
+     *  - "LIST_FILES" - List files on SD card
+     *
+     * @return true if a command was received and processed.
+     */
+    bool checkForCommands();
+
+    /**
+     * @brief Transfer a file from SD card to PC/OBC via UART.
+     *
+     * Reads the specified file from the SD card and transmits it in
+     * chunks over UART. The file is sent with start/end markers and
+     * size information for reliable reception.
+     *
+     * Format:
+     *   FILE_START
+     *   <filename>
+     *   <file_size_in_bytes>
+     *   <base64_encoded_data>
+     *   FILE_END
+     *
+     * @param filename Name of the file on SD card to transfer.
+     * @return true if transfer successful, false otherwise.
+     */
+    bool transferFile(const char* filename);
+
+    /**
+     * @brief List all files on the SD card root directory.
+     *
+     * Sends a list of files with their sizes over UART.
+     *
+     * @return true if successful, false otherwise.
+     */
+    bool listFiles();
+
 private:
     // ──────────────────────────────────────────────
     // Configuration Parameters
@@ -91,6 +133,19 @@ private:
     static const unsigned long BAUD_RATE = 115200;  ///< UART baud rate
     static const int HEADER_BYTES        = 10;      ///< AvaSpec header size
     static const int PIXEL_COUNT         = 2048;    ///< Number of 16-bit pixels
+    static const int MAX_CMD_LENGTH      = 128;     ///< Maximum command string length
+    static const int FILE_CHUNK_SIZE     = 512;     ///< Chunk size for file transfer
+
+    // ──────────────────────────────────────────────
+    // Helper Methods
+    // ──────────────────────────────────────────────
+
+    /**
+     * @brief Process a received command string.
+     *
+     * @param cmd Command string to process.
+     */
+    void processCommand(const char* cmd);
 };
 
 #endif // __OBCBridge_h_

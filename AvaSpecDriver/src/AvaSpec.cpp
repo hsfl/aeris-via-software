@@ -530,3 +530,4 @@ void AvaSpec::measurementAcknowledgement() {
     appendIndex = 0;
 
     Serial.println("Measurement acknowledgement complete.\n");
+}

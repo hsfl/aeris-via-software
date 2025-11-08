@@ -170,6 +170,9 @@ private:
     /** Write index within measurement buffer. */
     int appendIndex;
 
+    /** Measurement counter for unique CSV filenames. */
+    unsigned long measurementCounter;
+
     // ──────────────────────────────────────────────
     // Internal helper functions
     // ──────────────────────────────────────────────
