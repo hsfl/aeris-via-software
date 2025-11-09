@@ -134,6 +134,11 @@ void performMeasurement() {
         }
     }
 
+    // Step 0: Stop any ongoing measurement to ensure clean state
+    Serial.println("🛑 Ensuring device is stopped...");
+    myavaspec.stopMeasurement();
+    delay(500);
+
     // Step 1: Query device identification
     Serial.println("📡 Querying device identification...");
     myavaspec.getIdentification();

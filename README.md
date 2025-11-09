@@ -1,7 +1,7 @@
 # AERIS / Via Software
 
 ## Brief Overview
-This is the code repository for the VIA (Visual Imaging and Analysis) Payload firmware for the AERIS mission. The VIA payload utilizes an Avantes AvaSpec-Mini2048CL spectrometer connected to a Teensy 4.1 microcontroller acting as a USB host.
+This is the code repository for the VIA (Variability In Atmosphere) Payload firmware for the AERIS mission. The VIA payload utilizes an Avantes AvaSpec-Mini2048CL spectrometer connected to a Teensy 4.1 microcontroller acting as a USB host.
 
 The firmware handles:
 - USB communication with the AvaSpec spectrometer using the [USBHost_t36](https://github.com/PaulStoffregen/USBHost_t36) library by Paul Stoffregen

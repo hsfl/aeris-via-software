@@ -1,0 +1,75 @@
+═══════════════════════════════════════════════════════════════════
+VIA (Variability In Atmosphere) SPECTROMETER - COMMAND LIST
+═══════════════════════════════════════════════════════════════════
+
+COMMAND             PARAMETERS      DESCRIPTION
+───────────────────────────────────────────────────────────────────
+help                none            Display command help
+measure             none            Take single measurement
+identify            none            Query device identification
+auto                [seconds]       Start auto mode (default: 100s)
+stop                none            Stop auto mode
+status              none            Show system status
+sd-on               none            Enable SD card logging
+sd-off              none            Disable SD card logging
+
+═══════════════════════════════════════════════════════════════════
+
+COMMAND DETAILS
+───────────────────────────────────────────────────────────────────
+
+help
+  Syntax:   help
+  Example:  help
+  Returns:  Command reference guide
+
+measure
+  Syntax:   measure
+  Example:  measure
+  Action:   - Query device ID
+            - Configure measurement
+            - Acquire spectral data
+            - Save to SD (if enabled)
+  Duration: ~15 seconds
+
+identify
+  Syntax:   identify
+  Example:  identify
+  Action:   Query spectrometer identification
+  Returns:  Device metadata via USB register commands
+
+auto
+  Syntax:   auto [interval_seconds]
+  Examples: auto          (100 second interval)
+            auto 30       (30 second interval)
+            auto 300      (5 minute interval)
+  Action:   Start automatic measurements
+  Note:     Type 'stop' to end
+
+stop
+  Syntax:   stop
+  Example:  stop
+  Action:   Stop automatic measurement mode
+  Note:     Only works if auto mode is running
+
+status
+  Syntax:   status
+  Example:  status
+  Returns:  - SD card status
+            - Auto mode status
+            - Measurement count
+            - System uptime
+
+sd-on
+  Syntax:   sd-on
+  Example:  sd-on
+  Action:   Enable SD card logging
+  Note:     Creates files: meas_XXXX.txt, spectrum_XXXX.csv
+
+sd-off
+  Syntax:   sd-off
+  Example:  sd-off
+  Action:   Disable SD card logging
+  Note:     Measurements still run, just not saved
+
+═══════════════════════════════════════════════════════════════════

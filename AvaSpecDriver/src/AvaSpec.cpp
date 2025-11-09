@@ -193,15 +193,10 @@ void AvaSpec::getIdentification() {
     rx_data_ready = false;
     queue_Data_Transfer(rxpipe, rx_buffer, rx_size, this);
 
-    uint32_t start = millis();
-    
     if (waitForData(3000)) {
         Serial.println("\nResponse: get_ident");
         printBuffer(rx_buffer, 92);
-    } else {
-        Serial.println("❌ No response received (timeout).");
     }
-
 
     memset(tx_buffer, 0, BUF_SIZE);
     memset(rx_buffer, 0, BUF_SIZE);
@@ -283,14 +278,10 @@ void AvaSpec::prepareMeasurement() {
     rx_data_ready = false;
     queue_Data_Transfer(rxpipe, rx_buffer, rx_size, this);
 
-    uint32_t start = millis();
     if (waitForData(3000)) {
         Serial.println("\nResponse: prepare_measurement");
         printBuffer(rx_buffer, 8);
-    } else {
-        Serial.println("❌ No response received (timeout).");
     }
-
 
     memset(tx_buffer, 0, BUF_SIZE);
     memset(rx_buffer, 0, BUF_SIZE);
@@ -332,16 +323,10 @@ void AvaSpec::startMeasurement() {
     rx_data_ready = false;
     queue_Data_Transfer(rxpipe, rx_buffer, rx_size, this);
 
-    uint32_t start = millis();
-    while (!rx_data_ready && (millis() - start < 2000)) delay(1);
-
     if (waitForData(2000)) {
         Serial.println("\nResponse: start_measurement");
         printBuffer(rx_buffer, 6);
-    } else {
-        Serial.println("⚠️ No ACK received, continuing to data read...");
     }
-
 
     rx_data_ready = false;
     memset(tx_buffer, 0, BUF_SIZE);
@@ -386,14 +371,10 @@ void AvaSpec::stopMeasurement() {
     rx_data_ready = false;
     queue_Data_Transfer(rxpipe, rx_buffer, rx_size, this);
 
-    uint32_t start = millis();
     if (waitForData(2000)) {
         Serial.println("Response: stop_measurement");
         printBuffer(rx_buffer, 12);
-    } else {
-        Serial.println("❌ No response (timeout).");
     }
-
 
     memset(tx_buffer, 0, BUF_SIZE);
     memset(rx_buffer, 0, BUF_SIZE);
@@ -438,12 +419,22 @@ void AvaSpec::readFullMeasurement() {
         // Copy received bytes into the global buffer
         uint16_t n = min<uint16_t>(512, totalBytes - bytesReceived);
         memcpy(&measurement[bytesReceived], rx_buffer, n);
-        bytesReceived += n;
 
-        Serial.printf("Chunk received: %u / %u bytes\n", bytesReceived, totalBytes);
+        Serial.printf("Chunk received: %u / %u bytes\n", bytesReceived + n, totalBytes);
+
+        // Print raw bytes in hex format (like your screenshot)
+        for (uint16_t i = 0; i < n; i++) {
+            if (i % 16 == 0 && i > 0) Serial.println();  // New line every 16 bytes
+            if (rx_buffer[i] < 0x10) Serial.print("0");
+            Serial.print(rx_buffer[i], HEX);
+            Serial.print(" ");
+        }
+        Serial.println();  // Final newline
+
+        bytesReceived += n;
     }
 
-    Serial.println("✅ Full 4106 bytes received.\n");
+    Serial.println("\n✅ Full 4106 bytes received.\n");
 }
 
 // ============================================================================
@@ -457,7 +448,7 @@ void AvaSpec::readFullMeasurement() {
  */
 void AvaSpec::measurementAcknowledgement() {
     // ──────────────────────────────────────────────
-    // Step 1: Write spectrum to CSV (Pixel,Intensity)
+    // Step 1: Output CSV data to Serial (USB) and SD card
     // ──────────────────────────────────────────────
     // Increment measurement counter
     measurementCounter++;
@@ -466,33 +457,58 @@ void AvaSpec::measurementAcknowledgement() {
     char csvFilename[32];
     snprintf(csvFilename, sizeof(csvFilename), "/spectrum_%04lu.csv", measurementCounter);
 
-    Serial.print("\nWriting ");
-    Serial.print(csvFilename);
-    Serial.println(" to SD card...");
-
+    // Open SD file (if available)
     File csvFile = SD.open(csvFilename, FILE_WRITE);
-    if (csvFile) {
-        // Write CSV header
-        csvFile.println("Pixel,Intensity");
+    bool sdAvailable = (csvFile);
 
-        // Skip the first 10 header bytes (data begins at byte 10)
-        for (int i = 10; i < MEAS_SIZE; i += 2) {
-            int pixelIndex = (i - 10) / 2;                     // Pixel index (0–2047)
-            uint16_t intensity = measurement[i] | (measurement[i + 1] << 8);  // 16-bit LE value
+    if (sdAvailable) {
+        Serial.print("\nWriting ");
+        Serial.print(csvFilename);
+        Serial.println(" to SD card...");
+    } else {
+        Serial.println("\n⚠️ SD card not available, outputting to Serial only");
+    }
+
+    // Output CSV header to Serial
+    Serial.println("\n──────────────────────────────────────────────");
+    Serial.println("CSV DATA OUTPUT:");
+    Serial.println("──────────────────────────────────────────────");
+    Serial.println("Pixel,Intensity");
+
+    // Write CSV header to SD if available
+    if (sdAvailable) {
+        csvFile.println("Pixel,Intensity");
+    }
+
+    // Skip the first 10 header bytes (data begins at byte 10)
+    for (int i = 10; i < MEAS_SIZE; i += 2) {
+        int pixelIndex = (i - 10) / 2;                     // Pixel index (0–2047)
+        uint16_t intensity = measurement[i] | (measurement[i + 1] << 8);  // 16-bit LE value
+
+        // Output to Serial (USB)
+        Serial.print(pixelIndex);
+        Serial.print(",");
+        Serial.println(intensity);
+
+        // Output to SD card (if available)
+        if (sdAvailable) {
             csvFile.print(pixelIndex);
             csvFile.print(",");
             csvFile.println(intensity);
         }
+    }
 
+    Serial.println("──────────────────────────────────────────────");
+    Serial.println("END CSV DATA");
+    Serial.println("──────────────────────────────────────────────");
+
+    // Close SD file if it was open
+    if (sdAvailable) {
         csvFile.flush();
         csvFile.close();
         Serial.print("✅ ");
         Serial.print(csvFilename);
         Serial.println(" successfully written to SD card.");
-    } else {
-        Serial.print("❌ Failed to open ");
-        Serial.print(csvFilename);
-        Serial.println(" for writing!");
     }
 
     // ──────────────────────────────────────────────
@@ -528,6 +544,11 @@ void AvaSpec::measurementAcknowledgement() {
     messageFound = false;
     measAmount = 0;
     appendIndex = 0;
+
+    // Clear USB buffers to prevent stale data on next measurement
+    memset(tx_buffer, 0, BUF_SIZE);
+    memset(rx_buffer, 0, BUF_SIZE);
+    memset(measurement, 0, MEAS_SIZE);
 
     Serial.println("Measurement acknowledgement complete.\n");
 }

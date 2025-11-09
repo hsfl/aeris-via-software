@@ -1,8 +1,21 @@
 # VIA File Transfer Feature
 
+> **Note:** This document describes the optional file transfer functionality via Serial1 UART.
+> The main VIA system uses USB Host for the spectrometer and USB Serial for the command console.
+> File transfer via Serial1 is a legacy/optional feature not required for basic operation.
+
 ## Overview
 
-This implementation adds bidirectional serial communication to the AERIS VIA payload, enabling file transfer from the Teensy 4.1's SD card to a PC via UART (Serial1).
+This optional implementation adds bidirectional serial communication via UART (Serial1), enabling file transfer from the Teensy 4.1's SD card to a PC.
+
+**Current System (v3.0):**
+- Command console via USB Serial (micro-USB to PC)
+- Spectrometer control via USB Host (spliced cable)
+- File transfer via Python script (using same USB Serial connection)
+
+**This Optional Feature:**
+- Additional UART-based file transfer (requires OBCBridge code)
+- Not currently enabled in main.cpp
 
 ## Features
 
@@ -162,7 +175,7 @@ python file_transfer.py COM3 get measurements.txt
    - Hex encoding for binary data
    - Progress tracking and error handling
 
-3. **[main.cpp](src/main.cpp:110-113)** - Added command checking:
+3. **[main.cpp](src/main.cpp)** - Added command checking:
    ```cpp
    // Check for incoming commands from PC/OBC
    if (useOBC) {
