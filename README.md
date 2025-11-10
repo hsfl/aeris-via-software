@@ -150,13 +150,15 @@ pio run --target upload
 
 ## Testing with AvaSoft
 
-For verification, you can also test the spectrometer directly:
+For verification, you can also test the spectrometer directly with Avantes' official software:
 
 1. Install [AvaSoft](https://www.avantes.com/products/software/avasoft/)
-2. Connect AvaSpec USB directly to PC
-3. Start collecting data
+2. Connect the VIA USB port directly to the PC
+3. Start collecting data and zoom in
 
-![Example Spectrum](Example_Pixel_Spectrum.png)
+<img width="1920" height="1080" alt="Screenshot 2025-11-05 193505" src="https://github.com/user-attachments/assets/379d43e9-8094-4de0-baa0-14b7b35252b6" />
+
+![Example Pixel Spectrum](Example_Pixel_Spectrum.png)
 
 ---
 
@@ -168,4 +170,10 @@ For verification, you can also test the spectrometer directly:
 
 ---
 
-**AERIS VIA Payload Team** - Hawaii Space Flight Laboratory - 2025
+## Credits
+
+**AERIS VIA Payload Team** - Hawaii Space Flight Laboratory
+
+Special thanks to the **AERIS Payload Software Team** for their contributions and support.
+
+*2025*
