@@ -172,8 +172,6 @@ For verification, you can also test the spectrometer directly with Avantes' offi
 
 ## Credits
 
-**AERIS VIA Payload Team** - Hawaii Space Flight Laboratory
-
-Special thanks to the **AERIS Payload Software Team** for their contributions and support.
+**AERIS Payload Software Team** - Hawaii Space Flight Laboratory
 
 *2025*
