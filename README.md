@@ -8,7 +8,7 @@ Firmware for the VIA payload on the AERIS mission. Controls an Avantes AvaSpec-M
 
 ## Quick Start
 
-**👉 See [AvaSpecDriver/QUICKSTART.md](AvaSpecDriver/QUICKSTART.md) for usage instructions**
+**👉 See [QUICKSTART.md](QUICKSTART.md) for detailed usage instructions**
 
 ```bash
 # Build and upload
