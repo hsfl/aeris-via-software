@@ -64,15 +64,15 @@ def interactive_console(port):
     print(f"  Log file:     {log_filename}")
     print("═══════════════════════════════════════════════════")
     print()
-    print("📊 Auto-saving: Full log + CSV/TXT per measurement")
-    print("⌨️  Type commands normally, Ctrl+C to exit")
+    print("Auto-saving: Full log + CSV/TXT per measurement")
+    print("Type commands normally, Ctrl+C to exit")
     print()
 
     # Open serial port
     try:
         ser = serial.Serial(port, 115200, timeout=0.1)
     except serial.SerialException as e:
-        print(f"❌ Error opening {port}: {e}")
+        print(f"ERROR: Could not open {port}: {e}")
         print("\nAvailable COM ports:")
         ports = serial.tools.list_ports.comports()
         for p in ports:
@@ -122,8 +122,15 @@ def interactive_console(port):
                         sys.stdout.write(safe_text)
                         sys.stdout.flush()
 
-                    # Write to log file (preserve original text)
-                    log_file.write(text)
+                    # Write to log file (preserve original text, handle encoding)
+                    try:
+                        log_file.write(text)
+                        log_file.flush()
+                    except (UnicodeEncodeError, OSError):
+                        # If log fails, write ASCII version
+                        safe_log = text.encode('ascii', errors='replace').decode('ascii')
+                        log_file.write(safe_log)
+                        log_file.flush()
 
                     # Process line-by-line for hex data extraction
                     for line in text.split('\n'):
@@ -160,17 +167,26 @@ def interactive_console(port):
 
                         # Capture hex lines during measurement
                         elif reading_data and line:
-                            if all(c in '0123456789ABCDEFabcdef ' for c in line):
-                                hex_data_txt.append(line)
-                                csv_line = line.replace(' ', ',')
+                            # Extract only hex data (ignore chunk progress messages)
+                            hex_parts = []
+                            for word in line.split():
+                                # Check if this word is a hex byte (2 chars, all hex)
+                                if len(word) == 2 and all(c in '0123456789ABCDEFabcdef' for c in word):
+                                    hex_parts.append(word)
+
+                            if hex_parts:
+                                hex_line = ' '.join(hex_parts)
+                                hex_data_txt.append(hex_line)
+                                csv_line = ','.join(hex_parts)
                                 hex_data_csv.append(csv_line)
-            except UnicodeEncodeError as e:
-                # Silently continue on encoding errors - data is still logged to file
-                continue
             except Exception as e:
+                # Log the error but continue
                 if running:
-                    print(f"\n❌ Serial read error: {e}")
-                break
+                    try:
+                        print(f"\nERROR: Serial read error: {e}")
+                    except:
+                        pass
+                # Don't break - keep reading
 
     # Start serial reading thread
     serial_thread = threading.Thread(target=read_serial, daemon=True)
@@ -209,8 +225,8 @@ def interactive_console(port):
         serial_thread.join(timeout=1)
         log_file.close()
         ser.close()
-        print("\n\n✅ Session closed")
-        print(f"📁 Data saved in: {session_dir}")
+        print("\n\nSession closed")
+        print(f"Data saved in: {session_dir}")
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
