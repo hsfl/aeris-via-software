@@ -10,4 +10,4 @@
 PORT="${1:-/dev/ttyACM0}"
 
 # Just run the interactive Python script - it handles everything
-exec python3 via_interactive.py "$PORT"
+exec python3 scripts/via_interactive.py "$PORT"

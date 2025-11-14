@@ -24,7 +24,7 @@ Teensy 4.1 (VIA Payload)
 
 ## Quick Start
 
-**👉 See [QUICKSTART.md](QUICKSTART.md) for detailed usage instructions**
+**👉 See [QUICKSTART.md](docs/QUICKSTART.md) for detailed usage instructions**
 
 ```bash
 # Install Python dependencies
@@ -91,7 +91,7 @@ The firmware provides an interactive command console:
 - **CSV**: Pixel,Intensity format on SD card (`/spectrum_XXXX.csv`) and USB Serial
 - **Future optimization**: Raw binary transmission (67% size reduction)
 
-![Example Pixel Spectrum](Example_Pixel_Spectrum.png "Example Spectrum")
+![Example Pixel Spectrum](docs/Example_Pixel_Spectrum.png "Example Spectrum")
 
 ## Firmware Modules
 

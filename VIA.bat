@@ -10,4 +10,4 @@ REM        Default port: COM3
 set PORT=%1
 if "%PORT%"=="" set PORT=COM3
 
-python via_interactive_windows.py %PORT%
+python scripts\via_interactive_windows.py %PORT%
