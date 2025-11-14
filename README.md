@@ -27,8 +27,11 @@ Teensy 4.1 (VIA Payload)
 **👉 See [QUICKSTART.md](QUICKSTART.md) for detailed usage instructions**
 
 ```bash
-# Build and upload
+# Install Python dependencies
 cd AvaSpecDriver
+pip install -r requirements.txt
+
+# Build and upload
 pio run --target upload
 
 # Connect to console

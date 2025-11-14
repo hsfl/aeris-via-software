@@ -1,0 +1,8 @@
+# Python dependencies for AERIS VIA Spectrometer Software
+# Install with: pip install -r requirements.txt
+
+# Core dependency - Required for serial communication with Teensy
+pyserial>=3.5
+
+# Data visualization - Used by SerialRead.py for plotting spectrum data
+matplotlib>=3.5.0
