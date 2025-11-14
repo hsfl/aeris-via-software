@@ -53,14 +53,14 @@ Interactive command console for the Avantes AvaSpec-Mini2048CL spectrometer.
 3. Install PlatformIO extension inside Visual Studio Code
 4. Install Git → Download from git-scm.com
 5. Clone the repository using Visual Studio Code (Ctrl+Shift+P, type "git clone")
-6. Install Python libraries → Open Command Prompt in AvaSpecDriver folder, run: `pip install -r requirements.txt`
 
 **To upload firmware to the Teensy (EVERY TIME YOU GET A NEW TEENSY, or want to update):**
 1. Open the `AvaSpecDriver` folder in Visual Studio Code
 2. Plug in the Teensy via USB
 3. Click the checkmark ✓ at the bottom (Build)
-4. Click the arrow → at the bottom (Upload)
-5. Wait for SUCCESS
+4. Wait for SUCCESS
+5. Click the arrow → at the bottom (Upload)
+6. Wait for SUCCESS
 
 **To use the device (EVERY TIME YOU WANT TO TAKE MEASUREMENTS):**
 1. Plug in the Teensy via USB
@@ -328,7 +328,7 @@ Interactive command console for the Avantes AvaSpec-Mini2048CL spectrometer.
 
 ### Step 6: Install Python Libraries (Required for VIA.bat)
 
-This step installs special add-ons (libraries) that let Python talk to the Teensy and visualize data.
+This step installs a special add-on (library) that lets Python talk to the Teensy.
 
 1. **Press and hold** the **Windows key** (⊞ symbol, between Ctrl and Alt)
 2. **While holding it**, press the letter **R** key
@@ -340,28 +340,21 @@ This step installs special add-ons (libraries) that let Python talk to the Teens
 8. **A black window appears** - this is "Command Prompt"
    - Don't be scared of the black window - it's just a text interface
 9. **Click anywhere inside the black window** to make sure it's active
-10. **Type exactly**: `cd Documents\aeris-via-software\AvaSpecDriver`
-    - If you saved the repository on your Desktop instead, type: `cd Desktop\aeris-via-software\AvaSpecDriver`
-    - Make sure to use the location where YOU saved the repository
+10. **Type exactly**: `pip install pyserial`
+    - Make sure to include the spaces between words
 11. **Press Enter**
-12. **You should see** the path change to show you're in the AvaSpecDriver folder
-13. **Type exactly**: `pip install -r requirements.txt`
-    - Make sure to include all the spaces
-    - This will install ALL the necessary Python libraries at once
-14. **Press Enter**
-15. **WAIT and WATCH** the black window
+12. **WAIT and WATCH** the black window
     - You'll see text scrolling
     - It might say "Collecting pyserial"
-    - It might say "Collecting matplotlib"
     - It might say "Downloading..."
-    - This takes 30-60 seconds (it's downloading multiple libraries)
-16. **Look for** text like: `Successfully installed pyserial-X.X matplotlib-X.X ...`
+    - This takes 10-30 seconds
+13. **Look for** this text: `Successfully installed pyserial`
     - When you see this, the installation worked!
-    - If you see "Requirement already satisfied" - that's also fine, it means they're already installed
-17. **Type exactly**: `exit`
-18. **Press Enter**
-19. The black window closes
-20. **SUCCESS!** All Python libraries are installed
+    - If you see "Requirement already satisfied" - that's also fine, it means it's already installed
+14. **Type exactly**: `exit`
+15. **Press Enter**
+16. The black window closes
+17. **SUCCESS!** The Python library is installed
 
 ---
 
@@ -977,9 +970,9 @@ VIA> stop
 
 **Solution 3 - Check for Python dependencies:**
 1. Open PowerShell in the AvaSpecDriver folder
-2. Type: `pip install -r requirements.txt`
+2. Type: `pip install pyserial`
 3. Press Enter
-4. Wait for installation (this installs all required libraries)
+4. Wait for installation
 5. Try running `.\VIA.bat` again
 
 ### Problem: Build Failed in PlatformIO
@@ -1089,17 +1082,16 @@ VIA> stop
 3. **Unplug** the Teensy and **plug it back in**
 4. Try connecting again
 
-### Problem: Python Script Says "Module not found: serial" or "Module not found: matplotlib"
+### Problem: Python Script Says "Module not found: serial"
 
-**The Python libraries aren't installed.**
+**The PySerial library isn't installed.**
 
 **Solution:**
-1. Open PowerShell or Command Prompt
-2. Navigate to the AvaSpecDriver folder: `cd Documents\aeris-via-software\AvaSpecDriver`
-3. Type: `pip install -r requirements.txt`
-4. Press Enter
-5. Wait for installation to complete
-6. Try running the script again
+1. Open PowerShell
+2. Type: `pip install pyserial`
+3. Press Enter
+4. Wait for installation to complete
+5. Try running the script again
 
 ### Problem: I accidentally closed the PowerShell/VIA window
 
@@ -1217,8 +1209,7 @@ VIA> stop
 | Python not found | Reinstall Python, CHECK "Add to PATH" |
 | VIA.bat not found | Make sure you're in AvaSpecDriver folder |
 | COM port error | Check Device Manager, unplug/replug Teensy |
-| Script closes immediately | Try: `pip install -r requirements.txt` |
-| Module not found errors | Run: `pip install -r requirements.txt` |
+| Script closes immediately | Try: `pip install pyserial` |
 | No measurements | Check Teensy is plugged in, try `help` command |
 | Can't find data | Look in AvaSpecDriver for `session_...` folders |
 
