@@ -1,0 +1,10 @@
+# Don't copy build artifacts into Docker context
+.git
+.vscode
+*.code-workspace
+AvaSpecDriver/.pio
+AvaSpecDriver/.pioenvs
+AvaSpecDriver/.piolibdeps
+*.pyc
+__pycache__
+via_outputlogs
