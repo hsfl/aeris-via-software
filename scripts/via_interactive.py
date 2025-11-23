@@ -9,7 +9,7 @@ Single unified solution that provides:
 - Clean CSV/TXT extraction per measurement
 
 Directory structure:
-~/via_outputlogs/YYYYMMDD.HHMM/
+~/Aeris/data/via/YYYYMMDD.HHMM/
 ├── VIA.YYYYMMDD.HHMM.log          (full session log)
 ├── VIA.YYYYMMDD.HHMM.SS.csv       (measurement #1 - CSV)
 ├── VIA.YYYYMMDD.HHMM.SS.txt       (measurement #1 - TXT)
@@ -33,7 +33,7 @@ from pathlib import Path
 
 def create_session_directory():
     """Create timestamped session directory"""
-    base_dir = Path.home() / "via_outputlogs"
+    base_dir = Path.home() / "Aeris" / "data" / "via"
     session_timestamp = datetime.now().strftime("%Y%m%d.%H%M")
     session_dir = base_dir / session_timestamp
     session_dir.mkdir(parents=True, exist_ok=True)

@@ -9,7 +9,7 @@ Usage:
     python3 extract_measurements.py <log_file>
 
 Example:
-    python3 extract_measurements.py ~/via_outputlogs/20251108.1845/VIA.20251108.1845.log
+    python3 extract_measurements.py ~/Aeris/data/via/20251108.1845/VIA.20251108.1845.log
 """
 
 import sys
@@ -96,7 +96,7 @@ if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("Usage: python3 extract_measurements.py <log_file>")
         print("\nExample:")
-        print("  python3 extract_measurements.py ~/via_outputlogs/20251108.1845/VIA.20251108.1845.log")
+        print("  python3 extract_measurements.py ~/Aeris/data/via/20251108.1845/VIA.20251108.1845.log")
         sys.exit(1)
 
     log_file = sys.argv[1]

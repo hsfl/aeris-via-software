@@ -3,9 +3,9 @@
 VIA Automatic Measurement Monitor
 
 This script monitors the VIA serial console and automatically saves
-each measurement to timestamped files in ~/via_outputlogs/
+each measurement to timestamped files in ~/Aeris/data/via/
 
-Files are saved as: ~/via_outputlogs/VIA.YYYYMMDD.HHMMSS.txt
+Files are saved as: ~/Aeris/data/via/VIA.YYYYMMDD.HHMMSS.txt
 
 Usage:
     python3 via_monitor.py /dev/ttyACM0
@@ -21,8 +21,8 @@ from datetime import datetime
 from pathlib import Path
 
 def ensure_output_directory():
-    """Create ~/via_outputlogs/ directory if it doesn't exist"""
-    output_dir = Path.home() / "via_outputlogs"
+    """Create ~/Aeris/data/via/ directory if it doesn't exist"""
+    output_dir = Path.home() / "Aeris" / "data" / "via"
     output_dir.mkdir(exist_ok=True)
     return output_dir
 
