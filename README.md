@@ -24,21 +24,34 @@ Teensy 4.1 (VIA Payload)
 
 ## Quick Start
 
-**👉 See [QUICKSTART.md](docs/QUICKSTART.md) for detailed usage instructions**
+**👉 See [QUICKSTART.md](QUICKSTART.md) for complete workflow (unit tests → HIL → flatsat)**
+
+### Run Tests (No Hardware)
 
 ```bash
-# Install Python dependencies
-cd AvaSpecDriver
-pip install -r requirements.txt
+cd tests
+./run_all_tests.sh
+```
 
+### Hardware Testing
+
+```bash
 # Build and upload
+cd AvaSpecDriver
 pio run --target upload
 
 # Connect to console
-screen /dev/ttyACM0 115200
+./VIA.sh
 
 # Take measurement
 VIA> measure
+```
+
+### Flatsat (Pi 400)
+
+```bash
+ssh pi@192.168.4.163  # Password: aeris
+via && git pull && via-test && via-console
 ```
 
 ## AvaSpec Software Build Instructions
@@ -106,6 +119,44 @@ The firmware provides an interactive command console:
 - **Serial (USB)**: Command console and debug output at 115200 baud
 - **Serial1 (UART)**: Optional OBC bridge at 115200 baud (TX=1, RX=0)
 - **SD Card**: Built-in Teensy 4.1 SD interface (BUILTIN_SDCARD)
+
+## Testing
+
+### Automated Test Suite
+
+The `tests/` directory contains a complete test suite for development without hardware:
+
+- **test_data_generator.py**: Generates realistic spectrum data
+- **test_python_scripts.py**: 10+ unit tests for data processing
+- **virtual_serial_port.py**: Simulates Teensy firmware for interactive testing
+- **run_all_tests.sh**: Automated test runner
+
+Run all tests:
+
+```bash
+cd tests
+./run_all_tests.sh
+```
+
+See [tests/README.md](tests/README.md) for details.
+
+### Test Without Hardware
+
+Simulate the full system locally:
+
+**Terminal 1:**
+
+```bash
+cd tests
+python3 virtual_serial_port.py
+```
+
+**Terminal 2:**
+
+```bash
+cd scripts
+python3 via_interactive.py /tmp/ttyVIA0
+```
 
 ## Getting Data with AvaSoft
 * Install AvaSoft software https://www.avantes.com/products/software/avasoft/
