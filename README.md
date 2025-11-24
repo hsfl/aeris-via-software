@@ -1,13 +1,29 @@
 # AERIS / Via Software
 
 ## Brief Overview
-This is the code repository for the VIA (Variability In Atmosphere) Payload firmware for the AERIS mission. The VIA payload utilizes an Avantes AvaSpec-Mini2048CL spectrometer connected to a Teensy 4.1 microcontroller acting as a USB host.
+
+This is the code repository for the VIA (Variability In Atmosphere) Payload firmware for the AERIS mission. VIA is one of three scientific payloads creating the **first-ever trimodal, temporally-linked dataset** examining upper atmospheric composition (NOx, O3) before, during, and after solar particle events.
+
+**AERIS Payload Architecture:**
+
+- **VIA** (spectrometer) - Takes snapshots, triggers GPIO to coordinate other payloads
+- **SEEs** (particle detector) - Continuous recording, ±2.5s window on VIA trigger
+- **AMPPs** (plasma detector) - Continuous recording, ±2.5s window on VIA trigger
+
+**Temporal Linking (The Key):**
+
+VIA controls timing. When VIA captures a spectrum, it pulses GPIO → SEEs and AMPPs capture synchronized ±2.5s windows → All three datasets bundled with VIA's timestamp → OBC packages for downlink.
+
+**Why This Matters:** SEEs and AMPPs don't track absolute time - they only count "1 second, 1 second, 1 second." The ±2.5s buffer captures what happened BEFORE the VIA trigger (pre-event conditions), DURING (the event itself), and AFTER (post-event response). This creates temporally-linked trimodal measurements before, during, and after solar particle events.
+
+VIA payload uses an Avantes AvaSpec-Mini2048CL spectrometer connected to Teensy 4.1 microcontroller acting as a USB host.
 
 The firmware handles:
 - USB communication with the AvaSpec spectrometer using the [USBHost_t36](https://github.com/PaulStoffregen/USBHost_t36) library by Paul Stoffregen
 - Measurement data collection (4096 bytes / 2048 pixels)
 - SD card logging for data backup
 - Command console interface via USB Serial
+- GPIO trigger output (future) to synchronize SEEs and AMPPs payloads
 
 ## System Architecture
 
