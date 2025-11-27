@@ -18,6 +18,8 @@ import pty
 import time
 import select
 import sys
+import termios
+import tty
 from pathlib import Path
 from test_data_generator import SpectrometerSimulator
 
@@ -193,6 +195,11 @@ def run_virtual_serial():
     # Create pseudo-terminal pair
     master, slave = pty.openpty()
     slave_name = os.ttyname(slave)
+
+    # Disable echo on the slave side to prevent feedback loop
+    attrs = termios.tcgetattr(slave)
+    attrs[3] = attrs[3] & ~termios.ECHO  # Disable ECHO flag
+    termios.tcsetattr(slave, termios.TCSANOW, attrs)
 
     # Create symbolic link for easier access
     link_path = "/tmp/ttyVIA0"
