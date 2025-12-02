@@ -5,20 +5,30 @@
 # Usage:
 #   ./run_all_tests.sh        # Normal mode (test names + results)
 #   ./run_all_tests.sh -v     # Verbose mode (full output)
+#   ./run_all_tests.sh -f     # Include firmware build test
+#   ./run_all_tests.sh -vf    # Verbose + firmware build
 #
 
 # Parse arguments
 VERBOSE=0
-if [ "$1" == "-v" ] || [ "$1" == "--verbose" ]; then
-    VERBOSE=1
-fi
+FIRMWARE=0
+for arg in "$@"; do
+    case $arg in
+        -v|--verbose) VERBOSE=1 ;;
+        -f|--firmware) FIRMWARE=1 ;;
+        -vf|-fv) VERBOSE=1; FIRMWARE=1 ;;
+    esac
+done
 
-# Colors for output
+# UH Colors (Green #024731, Silver #C8C8C8)
+UH_GREEN='\033[38;2;2;71;49m'
+UH_SILVER='\033[38;2;200;200;200m'
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+BRIGHT_GREEN='\033[38;2;0;255;0m'
+BRIGHT_RED='\033[38;2;255;0;0m'
+NC='\033[0m'
 
 # Get script directory
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
@@ -28,9 +38,9 @@ cd "$SCRIPT_DIR"
 TESTS_PASSED=0
 TESTS_FAILED=0
 
-echo "═══════════════════════════════════════════════════════════════════"
-echo "  VIA SPECTROMETER - TEST SUITE"
-echo "═══════════════════════════════════════════════════════════════════"
+echo -e "${UH_GREEN}═══════════════════════════════════════════════════════════════════"
+echo -e "  ${UH_SILVER}VIA SPECTROMETER - TEST SUITE${UH_GREEN}"
+echo -e "═══════════════════════════════════════════════════════════════════${NC}"
 echo ""
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -71,38 +81,7 @@ fi
 echo ""
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Stage 3: Firmware build check
-# ─────────────────────────────────────────────────────────────────────────────
-echo -n "  Firmware build... "
-if command -v pio &> /dev/null; then
-    if [ $VERBOSE -eq 1 ]; then
-        echo ""
-        cd ../AvaSpecDriver
-        pio run 2>&1 | tail -30
-        BUILD_RESULT=$?
-        cd "$SCRIPT_DIR"
-    else
-        cd ../AvaSpecDriver
-        pio run > /dev/null 2>&1
-        BUILD_RESULT=$?
-        cd "$SCRIPT_DIR"
-    fi
-
-    if [ $BUILD_RESULT -eq 0 ]; then
-        echo -e "${GREEN}ok${NC}"
-        ((TESTS_PASSED++))
-    else
-        echo -e "${RED}FAILED${NC}"
-        ((TESTS_FAILED++))
-    fi
-else
-    echo -e "${YELLOW}skipped${NC} (PlatformIO not found)"
-    BUILD_RESULT=-1
-fi
-echo ""
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Stage 4: Data format validation
+# Stage 3: Data format validation
 # ─────────────────────────────────────────────────────────────────────────────
 echo "  Data Formats:"
 FORMAT_PASSED=1
@@ -130,26 +109,51 @@ fi
 echo ""
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Stage 4: Firmware build check (only with -f flag)
+# ─────────────────────────────────────────────────────────────────────────────
+BUILD_RESULT=-1
+if [ $FIRMWARE -eq 1 ]; then
+    echo -n "  Firmware build... "
+    if command -v pio &> /dev/null; then
+        if [ $VERBOSE -eq 1 ]; then
+            echo ""
+            cd ../AvaSpecDriver
+            pio run 2>&1 | tail -30
+            BUILD_RESULT=$?
+            cd "$SCRIPT_DIR"
+        else
+            cd ../AvaSpecDriver
+            pio run > /dev/null 2>&1
+            BUILD_RESULT=$?
+            cd "$SCRIPT_DIR"
+        fi
+
+        if [ $BUILD_RESULT -eq 0 ]; then
+            echo -e "${GREEN}ok${NC}"
+            ((TESTS_PASSED++))
+        else
+            echo -e "${RED}FAILED${NC}"
+            ((TESTS_FAILED++))
+        fi
+    else
+        echo -e "${YELLOW}skipped${NC} (PlatformIO not found)"
+        BUILD_RESULT=-1
+    fi
+    echo ""
+fi
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Summary
 # ─────────────────────────────────────────────────────────────────────────────
-echo "═══════════════════════════════════════════════════════════════════"
-echo "  RESULTS"
-echo "═══════════════════════════════════════════════════════════════════"
+echo -e "${UH_GREEN}═══════════════════════════════════════════════════════════════════"
+echo -e "  ${UH_SILVER}RESULTS${UH_GREEN}"
+echo -e "═══════════════════════════════════════════════════════════════════${NC}"
 
 # Unit tests
 if [ $UNIT_RESULT -eq 0 ]; then
     echo -e "  ${GREEN}✓${NC} Unit tests"
 else
     echo -e "  ${RED}✗${NC} Unit tests"
-fi
-
-# Firmware build
-if [ $BUILD_RESULT -eq 0 ]; then
-    echo -e "  ${GREEN}✓${NC} Firmware build"
-elif [ $BUILD_RESULT -eq -1 ]; then
-    echo -e "  ${YELLOW}-${NC} Firmware build (skipped)"
-else
-    echo -e "  ${RED}✗${NC} Firmware build"
 fi
 
 # Data formats
@@ -159,11 +163,22 @@ else
     echo -e "  ${RED}✗${NC} Data formats"
 fi
 
+# Firmware build (only shown if -f flag used)
+if [ $FIRMWARE -eq 1 ]; then
+    if [ $BUILD_RESULT -eq 0 ]; then
+        echo -e "  ${GREEN}✓${NC} Firmware build"
+    elif [ $BUILD_RESULT -eq -1 ]; then
+        echo -e "  ${YELLOW}-${NC} Firmware build (skipped - PlatformIO not found)"
+    else
+        echo -e "  ${RED}✗${NC} Firmware build"
+    fi
+fi
+
 echo ""
 
 # Final result with ASCII art
 if [ $TESTS_FAILED -eq 0 ]; then
-    echo -e "${GREEN}"
+    echo -e "${BRIGHT_GREEN}"
     echo "  ███████╗██╗   ██╗ ██████╗ ██████╗███████╗███████╗███████╗"
     echo "  ██╔════╝██║   ██║██╔════╝██╔════╝██╔════╝██╔════╝██╔════╝"
     echo "  ███████╗██║   ██║██║     ██║     █████╗  ███████╗███████╗"
@@ -175,7 +190,7 @@ if [ $TESTS_FAILED -eq 0 ]; then
     echo ""
     exit 0
 else
-    echo -e "${RED}"
+    echo -e "${BRIGHT_RED}"
     echo "  ███████╗ █████╗ ██╗██╗     ███████╗██████╗ "
     echo "  ██╔════╝██╔══██╗██║██║     ██╔════╝██╔══██╗"
     echo "  █████╗  ███████║██║██║     █████╗  ██║  ██║"
