@@ -72,7 +72,7 @@ aeris via sim       # Run simulation
 aeris via sim -v    # Simulation with verbose output
 ```
 
-<!-- TODO: Screenshot of AERIS console menu showing VIA options -->
+![AERIS Control Panel](docs/aeris.png "AERIS Control Panel")
 
 ### Local Development
 
@@ -239,7 +239,17 @@ aeris help          # Show all commands
 | **SSH** (same network) | `ssh aeris@192.168.120.22` |
 | **Tailscale** (remote) | `ssh aeris@<tailscale-ip>` |
 
-<!-- TODO: Screenshot of VIA console showing live measurement output -->
+### Unit Tests
+
+![VIA Unit Tests](docs/via_units.png "VIA Unit Tests - All Passing")
+
+### Simulation Mode
+
+![VIA Simulation](docs/via_sim.png "VIA Simulation - Interactive Console")
+
+### Measurement Data
+
+![VIA Data Output](docs/via_data.png "VIA Hex Data Output")
 
 ## Getting Data with AvaSoft
 * Install AvaSoft software https://www.avantes.com/products/software/avasoft/
