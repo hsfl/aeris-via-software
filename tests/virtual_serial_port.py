@@ -27,11 +27,16 @@ from test_data_generator import SpectrometerSimulator
 class VirtualTeensy:
     """Simulates Teensy 4.1 running VIA firmware"""
 
+    # Output formatting constants
+    SEPARATOR = "──────────────────────────────────────────────"
+    HEADER = "════════════════════════════════════════════════════════"
+
     def __init__(self):
         self.sim = SpectrometerSimulator()
         self.measurement_count = 0
         self.auto_mode = False
         self.auto_interval = 100
+        self.sd_enabled = False  # Simulated SD card (disabled by default)
 
     def handle_command(self, command):
         """Process incoming command and return response"""
@@ -68,6 +73,20 @@ class VirtualTeensy:
             else:
                 return "⚠️ Auto mode is not running\n"
 
+        elif cmd == 'sd-on':
+            if not self.sd_enabled:
+                self.sd_enabled = True
+                return "💾 Enabling SD card logging...\n"
+            else:
+                return "⚠️ SD card logging already enabled\n"
+
+        elif cmd == 'sd-off':
+            if self.sd_enabled:
+                self.sd_enabled = False
+                return "💾 Disabling SD card logging...\n"
+            else:
+                return "⚠️ SD card logging already disabled\n"
+
         elif cmd:
             return (f"❌ Unknown command: '{cmd}'\n"
                    f"   Type 'help' for available commands\n")
@@ -88,6 +107,8 @@ Available Commands:
   auto [seconds]    - Start auto mode (default: 100s)
   stop              - Stop auto mode
   status            - Show system status
+  sd-on             - Enable SD card logging
+  sd-off            - Disable SD card logging
 
 Examples:
   measure           - Take one measurement now
@@ -112,14 +133,14 @@ Response: get_ident
     def get_status(self):
         """Return system status"""
         return f"""
-────────────────────────────────────────────
+{self.SEPARATOR}
 System Status:
-────────────────────────────────────────────
-  SD Card Logging:     DISABLED (Simulated)
+{self.SEPARATOR}
+  SD Card Logging:     {'ENABLED' if self.sd_enabled else 'DISABLED'}
   Auto Mode:           {'RUNNING' if self.auto_mode else 'STOPPED'}
   Auto Interval:       {self.auto_interval} seconds
   Measurements Taken:  {self.measurement_count}
-────────────────────────────────────────────
+{self.SEPARATOR}
 """
 
     def perform_measurement(self):
@@ -127,9 +148,9 @@ System Status:
         self.measurement_count += 1
 
         output = []
-        output.append("\n════════════════════════════════════════════════════════")
+        output.append(f"\n{self.HEADER}")
         output.append(f"Starting Measurement #{self.measurement_count}")
-        output.append("════════════════════════════════════════════════════════")
+        output.append(self.HEADER)
         output.append("🛑 Ensuring device is stopped...")
         output.append("📡 Querying device identification...")
         output.append("⚙️  Preparing measurement parameters...")
@@ -163,21 +184,36 @@ System Status:
 
         output.append("✅ Full 4106 bytes received.")
         output.append("")
-        output.append("──────────────────────────────────────────────")
+        output.append(self.SEPARATOR)
         output.append("CSV DATA OUTPUT:")
-        output.append("──────────────────────────────────────────────")
+        output.append(self.SEPARATOR)
         output.append("Pixel,Intensity")
 
         # Output CSV data
         for pixel, intensity in enumerate(intensities):
             output.append(f"{pixel},{intensity}")
 
-        output.append("──────────────────────────────────────────────")
+        output.append(self.SEPARATOR)
         output.append("END CSV DATA")
-        output.append("──────────────────────────────────────────────")
-        output.append("════════════════════════════════════════════════════════")
+        output.append(self.SEPARATOR)
+
+        # SD card output section (if enabled)
+        if self.sd_enabled:
+            output.append("")
+            output.append(self.SEPARATOR)
+            output.append("SD Card DATA OUTPUT:")
+            output.append(self.SEPARATOR)
+            output.append("Pixel,Intensity")
+            for pixel, intensity in enumerate(intensities):
+                output.append(f"{pixel},{intensity}")
+            output.append(self.SEPARATOR)
+            output.append("END SD Card DATA")
+            output.append(self.SEPARATOR)
+            output.append(f"✅ /spectrum_{self.measurement_count:04d}.csv successfully written to SD card.")
+
+        output.append(self.HEADER)
         output.append("Measurement Complete!")
-        output.append("════════════════════════════════════════════════════════")
+        output.append(self.HEADER)
         output.append("")
 
         return '\n'.join(output)

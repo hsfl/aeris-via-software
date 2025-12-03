@@ -38,36 +38,51 @@ Teensy 4.1 (VIA Payload)
 
 **Current Version:** V3.0 - Command Console Mode
 
+## Key Libraries
+
+| Library | Purpose |
+|---------|---------|
+| [USBHost_t36](https://github.com/PaulStoffregen/USBHost_t36) | Paul Stoffregen's USB Host library for Teensy - enables direct USB communication with the AvaSpec spectrometer |
+| [SdFat](https://github.com/greiman/SdFat) | High-performance SD card library for data logging |
+| [pyserial](https://pypi.org/project/pyserial/) | Python serial communication for the interactive console |
+| [pty](https://docs.python.org/3/library/pty.html) | Unix pseudo-terminal for virtual serial port simulation |
+
 ## Quick Start
 
-**👉 See [QUICKSTART.md](QUICKSTART.md) for complete workflow (unit tests → HIL → flatsat)**
+**👉 See [QUICKSTART.md](QUICKSTART.md) for complete workflow**
 
-### Run Tests (No Hardware)
+### On the Pi 400
 
 ```bash
-cd tests
-./run_all_tests.sh
+ssh aeris@192.168.120.22
+aeris
 ```
 
-### Hardware Testing
+That's it! The AERIS console handles everything - pick from the menu:
+
+- **1** - VIA Unit Tests
+- **2** - VIA Simulation (no hardware needed)
+- **3** - VIA HIL Test (real Teensy)
+
+Or use CLI shortcuts:
 
 ```bash
-# Build and upload
+aeris via test      # Run unit tests
+aeris via sim       # Run simulation
+aeris via sim -v    # Simulation with verbose output
+```
+
+<!-- TODO: Screenshot of AERIS console menu showing VIA options -->
+
+### Local Development
+
+```bash
+# Build and upload firmware
 cd AvaSpecDriver
 pio run --target upload
 
-# Connect to console
+# Run console
 ./VIA.sh
-
-# Take measurement
-VIA> measure
-```
-
-### Flatsat (Pi 400)
-
-```bash
-ssh pi@192.168.4.163  # Password: aeris
-via && git pull && via-test && via-console
 ```
 
 ## AvaSpec Software Build Instructions
@@ -156,23 +171,75 @@ cd tests
 
 See [tests/README.md](tests/README.md) for details.
 
+### Test Libraries & Dependencies
+
+The test suite uses Python standard library only (no external dependencies required):
+
+| Library | Purpose |
+|---------|---------|
+| `unittest` | Test framework and assertions |
+| `csv` | Reading/writing spectrum CSV files |
+| `struct` | Binary data packing/unpacking |
+| `pty` + `os` | Virtual serial port creation (Linux/Mac) |
+| `threading` | Concurrent virtual serial port handling |
+| `subprocess` | Running test scripts |
+| `pathlib` | Cross-platform file path handling |
+| `datetime` | Timestamped session folders |
+
+No `pip install` required - works on any system with Python 3.6+.
+
 ### Test Without Hardware
 
 Simulate the full system locally:
 
-**Terminal 1:**
-
 ```bash
-cd tests
-python3 virtual_serial_port.py
+aeris via sim       # Runs virtual serial port + console automatically
 ```
 
-**Terminal 2:**
+Or manually:
 
 ```bash
-cd scripts
-python3 via_interactive.py /tmp/ttyVIA0
+cd tests && python3 virtual_serial_port.py &
+./VIA.sh /tmp/ttyVIA0
 ```
+
+## Pi 400 Remote Testing
+
+A dedicated Raspberry Pi 400 serves as the remote testing machine for both VIA and SEEs payloads.
+
+### Connect and Run
+
+```bash
+ssh aeris@192.168.120.22
+aeris
+```
+
+The AERIS console provides:
+
+- **1) Unit Tests** - Automated Python test suite
+- **2) Simulation** - Virtual serial port with fake data
+- **3) HIL Test** - Real Teensy hardware
+- **7) Update Code** - Pull latest from git
+- **8) Flash VIA** - Upload firmware to Teensy
+
+### CLI Shortcuts
+
+```bash
+aeris via test      # Run unit tests
+aeris via sim       # Run simulation
+aeris via sim -v    # Verbose mode
+aeris update        # Pull latest code
+aeris help          # Show all commands
+```
+
+### Remote Access
+
+| Method | Command |
+|--------|---------|
+| **SSH** (same network) | `ssh aeris@192.168.120.22` |
+| **Tailscale** (remote) | `ssh aeris@<tailscale-ip>` |
+
+<!-- TODO: Screenshot of VIA console showing live measurement output -->
 
 ## Getting Data with AvaSoft
 * Install AvaSoft software https://www.avantes.com/products/software/avasoft/
