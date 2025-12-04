@@ -203,6 +203,50 @@ cd tests && python3 virtual_serial_port.py &
 ./VIA.sh /tmp/ttyVIA0
 ```
 
+### Simulation vs HIL Architecture
+
+The simulation and hardware-in-loop (HIL) tests use the **same interactive console** - only the data source differs:
+
+```text
+┌─────────────────────────────────────────────────────────────────────┐
+│                  scripts/via_interactive.py                         │
+│         (parses serial data, progress bars, saves files)            │
+│                                                                     │
+│  Detects: "Starting Measurement", "CSV DATA OUTPUT:", etc.          │
+│  Saves:   ~/Aeris/data/via/YYYYMMDD.HHMM/*.csv                      │
+└────────────────────────────┬────────────────────────────────────────┘
+                             │
+              ┌──────────────┴──────────────┐
+              │                             │
+              ▼                             ▼
+       /tmp/ttyVIA0                  /dev/ttyACM0
+       (virtual port)                (real Teensy)
+              │                             │
+              ▼                             ▼
+┌─────────────────────────┐   ┌─────────────────────────────────────┐
+│ tests/                  │   │ AvaSpecDriver/src/                  │
+│  virtual_serial_port.py │   │  main.cpp      (command console)    │
+│  test_data_generator.py │   │  AvaSpec.cpp   (USB host + output)  │
+│                         │   │  AvaSpec.h     (protocol constants) │
+│ Generates:              │   │                                     │
+│  - Gaussian peaks       │   │ Reads from:                         │
+│  - Fake hex data        │   │  - Real AvaSpec spectrometer        │
+│  - Simulated responses  │   │  - 4106 bytes per measurement       │
+└─────────────────────────┘   └─────────────────────────────────────┘
+              │                             │
+              └──────────────┬──────────────┘
+                             │
+                             ▼
+                   SAME OUTPUT FORMAT
+                   ├─ VIA> prompt
+                   ├─ "Starting Measurement #N"
+                   ├─ Hex dump (257 lines, 16 bytes each)
+                   ├─ "CSV DATA OUTPUT:" + 2048 rows
+                   └─ "Measurement Complete!"
+```
+
+**Key insight**: If it works in simulation, it will work on real hardware.
+
 ## Pi 400 Remote Testing
 
 A dedicated Raspberry Pi 400 serves as the remote testing machine for both VIA and SEEs payloads.
