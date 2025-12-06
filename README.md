@@ -1,4 +1,4 @@
-# AERIS / Via Software
+# AERIS / VIA Software
 
 ## Brief Overview
 
