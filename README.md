@@ -260,11 +260,13 @@ aeris
 
 The AERIS console provides:
 
+- **0) Dual Console** - VIA+SEES side-by-side in tmux
 - **1) Unit Tests** - Automated Python test suite
 - **2) Simulation** - Virtual serial port with fake data
 - **3) HIL Test** - Real Teensy hardware
 - **7) Update Code** - Pull latest from git
-- **8) Flash VIA** - Upload firmware to Teensy
+- **8) Flash Firmware** - Upload firmware to VIA or SEES
+- **9) Data Viewer** - Browse and plot captured data
 
 ### CLI Shortcuts
 
@@ -294,6 +296,52 @@ aeris help          # Show all commands
 ### Measurement Data
 
 ![VIA Data Output](docs/via_data.png "VIA Hex Data Output")
+
+## Dual Console Mode (VIA + SEES)
+
+The AERIS Control Panel includes a **Dual Console Mode** that runs VIA and SEES side-by-side in tmux, enabling synchronized captures for temporally-linked bimodal data.
+
+![Dual Console Mode](docs/dual_consoles.png "VIA + SEES in tmux")
+
+### Tmux Keyboard Shortcuts
+
+| Shortcut | Action |
+|----------|--------|
+| `Ctrl-a m` | **Synchronized capture** - sends `measure` to VIA and `snap` to SEES |
+| `Ctrl-a o` | SEES on (start buffering) |
+| `Ctrl-a f` | SEES off (stop buffering) |
+| `Ctrl-a n` | Switch to next pane |
+| `Ctrl-a q` | Quit and return to menu |
+
+![Tmux Controls](docs/tmux_controls.png "Dual Console Controls")
+
+### Temporally-Linked Data Capture
+
+When you press `Ctrl-a m`, both payloads capture simultaneously:
+- **VIA**: Takes a full spectrum measurement (2048 pixels)
+- **SEES**: Saves a ±2.5s snap window (captures pre-event and post-event particle data)
+
+Both files are timestamped identically, creating correlated datasets:
+
+![Temporally Linked Data](docs/temporal_linked_data.png "VIA measurements with synchronized SEES snaps")
+
+## Data Viewer
+
+The AERIS console includes a built-in data viewer (option 9) for browsing and plotting captured data files.
+
+![Data Viewer](docs/data_viewer.png "Data Viewer Menu")
+
+### VIA Spectrum View
+
+View individual VIA measurements with CSV preview and ASCII spectrum plot:
+
+![VIA Data Viewer](docs/via_data_viewer.png "VIA Spectrum Data")
+
+### Correlated Data View
+
+View temporally-linked VIA+SEES pairs together, showing both the spectrum and particle data from the same capture moment:
+
+![Correlated Data](docs/correlated_data.png "VIA Spectrum + SEES Particles")
 
 ## Getting Data with AvaSoft
 * Install AvaSoft software https://www.avantes.com/products/software/avasoft/
