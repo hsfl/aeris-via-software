@@ -1,6 +1,6 @@
 # Makefile for VIA Native Linux Build
 #
-# Builds the firmware for Linux simulation testing.
+# Builds the VIA firmware for Linux simulation testing.
 # Simulates spectrometer responses without actual hardware.
 #
 # Cross-compilation for ARM64 (Pi 400):
