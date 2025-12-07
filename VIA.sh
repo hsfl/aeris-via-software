@@ -10,7 +10,13 @@
 #        --sim: Simulation mode (run native binary)
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-NATIVE_BIN="$SCRIPT_DIR/AvaSpecDriver/native/via_native"
+
+# Look for native binary: first in ~/Aeris/bin (GitHub download), then in repo
+if [[ -x "$HOME/Aeris/bin/via_native" ]]; then
+    NATIVE_BIN="$HOME/Aeris/bin/via_native"
+else
+    NATIVE_BIN="$SCRIPT_DIR/AvaSpecDriver/native/via_native"
+fi
 
 # Parse arguments - find port and flags separately
 PORT="/dev/ttyACM0"
