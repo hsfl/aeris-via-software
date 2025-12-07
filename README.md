@@ -265,8 +265,12 @@ The AERIS console provides:
 - **2) Simulation** - Virtual serial port with fake data
 - **3) HIL Test** - Real Teensy hardware
 - **7) Update Code** - Pull latest from git
-- **8) Flash Firmware** - Upload firmware to VIA or SEES
-- **9) Data Viewer** - Browse and plot captured data
+- **8) Data Viewer** - Browse and plot captured data
+- **9) HIL Deploy** - Flash firmware and run hardware tests
+
+### HIL Deploy Menu
+
+![HIL Deploy Menu](docs/aeris_hil.png "HIL Deploy - Flash and Run Hardware Tests")
 
 ### CLI Shortcuts
 
