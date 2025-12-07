@@ -2,8 +2,14 @@
  * @file main_native.cpp
  * @brief Native Linux entry point for VIA firmware simulation
  *
- * Simulates the VIA spectrometer firmware for testing without hardware.
- * Generates fake spectrum data that looks like real AvaSpec output.
+ * NOTE: Unlike SEES (which can include real firmware since it only uses ADC),
+ * VIA requires simulating the USB Host interface to the AvaSpec spectrometer.
+ * The real firmware uses USBHost_t36.h and talks to actual hardware.
+ *
+ * This simulation:
+ * - Provides the same command interface as real firmware
+ * - Generates synthetic spectrum data that resembles real output
+ * - Allows testing the console/logging pipeline without hardware
  *
  * Usage:
  *   ./via_native
