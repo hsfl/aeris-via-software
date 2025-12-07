@@ -29,6 +29,11 @@ using byte = uint8_t;
 #define FILE_WRITE 1
 #define FILE_READ 0
 
+// Print format constants
+#define HEX 16
+#define DEC 10
+#define BIN 2
+
 // Timing functions
 inline uint32_t millis() {
     static auto start = std::chrono::steady_clock::now();
@@ -126,11 +131,21 @@ public:
 
     void print(const char* s) { printf("%s", s); }
     void print(const String& s) { printf("%s", s.c_str()); }
-    void print(int val) { printf("%d", val); }
-    void print(unsigned int val) { printf("%u", val); }
+    void print(int val, int base = DEC) {
+        if (base == HEX) printf("%X", val);
+        else printf("%d", val);
+    }
+    void print(unsigned int val, int base = DEC) {
+        if (base == HEX) printf("%X", val);
+        else printf("%u", val);
+    }
     void print(long val) { printf("%ld", val); }
     void print(unsigned long val) { printf("%lu", val); }
     void print(char c) { printf("%c", c); }
+    void print(uint8_t val, int base = DEC) {
+        if (base == HEX) printf("%X", val);
+        else printf("%u", val);
+    }
 
     void println() { printf("\n"); fflush(stdout); }
     void println(const char* s) { printf("%s\n", s); fflush(stdout); }

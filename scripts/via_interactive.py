@@ -34,8 +34,85 @@ import termios
 import tty
 import time
 import argparse
+import subprocess
+import fcntl
+import os
 from datetime import datetime
 from pathlib import Path
+
+
+class SubprocessSerial:
+    """
+    Wrapper that provides a serial-like interface for a subprocess.
+    Used for simulation mode where we run the native binary directly.
+    """
+    def __init__(self, cmd):
+        self.proc = subprocess.Popen(
+            [cmd],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            bufsize=0
+        )
+        # Make stdout non-blocking
+        fd = self.proc.stdout.fileno()
+        flags = fcntl.fcntl(fd, fcntl.F_GETFL)
+        fcntl.fcntl(fd, fcntl.F_SETFL, flags | os.O_NONBLOCK)
+        self._buffer = b""
+
+    def write(self, data):
+        """Write to subprocess stdin"""
+        try:
+            self.proc.stdin.write(data)
+            self.proc.stdin.flush()
+        except (BrokenPipeError, OSError):
+            pass
+
+    @property
+    def in_waiting(self):
+        """Check if data is available"""
+        try:
+            chunk = self.proc.stdout.read(4096)
+            if chunk:
+                self._buffer += chunk
+        except (BlockingIOError, OSError):
+            pass
+        return len(self._buffer)
+
+    def read(self, size=1):
+        """Read from buffer"""
+        # Try to fill buffer first
+        try:
+            chunk = self.proc.stdout.read(4096)
+            if chunk:
+                self._buffer += chunk
+        except (BlockingIOError, OSError):
+            pass
+        # Return requested data
+        data = self._buffer[:size]
+        self._buffer = self._buffer[size:]
+        return data
+
+    def reset_input_buffer(self):
+        """Clear input buffer"""
+        self._buffer = b""
+        # Also drain any pending data from subprocess
+        try:
+            while True:
+                chunk = self.proc.stdout.read(4096)
+                if not chunk:
+                    break
+        except (BlockingIOError, OSError):
+            pass
+
+    def close(self):
+        """Terminate subprocess"""
+        try:
+            self.proc.stdin.close()
+            self.proc.terminate()
+            self.proc.wait(timeout=1)
+        except:
+            self.proc.kill()
 
 def create_session_directory():
     """Create timestamped session directory"""
@@ -76,8 +153,14 @@ def finish_progress_bar(label, total, actual=None):
     sys.stdout.flush()
 
 
-def interactive_console(port, verbose=False):
-    """Interactive console with automatic logging"""
+def interactive_console(port, verbose=False, native_bin=None):
+    """Interactive console with automatic logging
+
+    Args:
+        port: Serial port path (ignored if native_bin is set)
+        verbose: Show full raw data output
+        native_bin: Path to native binary (simulation mode)
+    """
 
     # Create session directory
     session_dir, session_timestamp = create_session_directory()
@@ -87,7 +170,11 @@ def interactive_console(port, verbose=False):
     print("═══════════════════════════════════════════════════")
     print("  VIA Interactive Console")
     print("═══════════════════════════════════════════════════")
-    print(f"  Port:         {port}")
+    if native_bin:
+        print(f"  Mode:         SIMULATION (native binary)")
+        print(f"  Binary:       {native_bin}")
+    else:
+        print(f"  Port:         {port}")
     print(f"  Session dir:  {session_dir}")
     print(f"  Log file:     {log_filename}")
     print(f"  Verbose:      {'ON' if verbose else 'OFF'}")
@@ -99,8 +186,11 @@ def interactive_console(port, verbose=False):
         print("Use -v flag for full raw data output")
     print()
 
-    # Open serial port
-    ser = serial.Serial(port, 115200, timeout=0.1)
+    # Open serial port or subprocess
+    if native_bin:
+        ser = SubprocessSerial(native_bin)
+    else:
+        ser = serial.Serial(port, 115200, timeout=0.1)
 
     # Open session log
     log_file = open(log_file_path, 'w', buffering=1)
@@ -166,8 +256,11 @@ def interactive_console(port, verbose=False):
                     sys.stdout.write(char)
                 sys.stdout.flush()
 
-                # Send to serial port
-                ser.write(char.encode())
+                # Send to serial port (convert CR to LF for firmware)
+                if char == '\r':
+                    ser.write(b'\n')
+                else:
+                    ser.write(char.encode())
 
             # Check for serial data
             if ser.in_waiting > 0:
@@ -391,7 +484,7 @@ if __name__ == "__main__":
 Examples:
   python3 via_interactive.py /dev/ttyACM0           # Normal mode (progress bars)
   python3 via_interactive.py /dev/ttyACM0 -v        # Verbose mode (full raw output)
-  python3 via_interactive.py /tmp/ttyVIA0           # Virtual serial port
+  python3 via_interactive.py --native ./via_native  # Simulation mode (native binary)
 
 In-console commands:
   measure      - Take a measurement
@@ -400,9 +493,18 @@ In-console commands:
   Ctrl+C       - Exit
         """
     )
-    parser.add_argument("port", help="Serial port (e.g., /dev/ttyACM0 or /tmp/ttyVIA0)")
+    parser.add_argument("port", nargs="?", default=None,
+                        help="Serial port (e.g., /dev/ttyACM0)")
     parser.add_argument("-v", "--verbose", action="store_true",
                         help="Verbose mode - show full raw data output")
+    parser.add_argument("--native", metavar="BINARY",
+                        help="Path to native firmware binary (simulation mode)")
 
     args = parser.parse_args()
-    interactive_console(args.port, verbose=args.verbose)
+
+    if args.native:
+        interactive_console(None, verbose=args.verbose, native_bin=args.native)
+    elif args.port:
+        interactive_console(args.port, verbose=args.verbose)
+    else:
+        parser.error("Either PORT or --native BINARY is required")

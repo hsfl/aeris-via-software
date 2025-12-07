@@ -186,6 +186,41 @@ void performMeasurement() {
     uint16_t spectrum[numPixels];
     generateSimulatedSpectrum(spectrum, numPixels);
 
+    // Output raw hex dump (4106 bytes = 10 header + 4096 data)
+    Serial.println();
+    Serial.println("Reading full 4106-byte measurement...");
+
+    // Create measurement buffer (10 header bytes + 4096 data bytes)
+    uint8_t measurement[4106];
+    // Header (first 10 bytes)
+    measurement[0] = 0x20;  // Protocol ID
+    measurement[1] = 0x00;  // Sequence
+    measurement[2] = 0x0A;  // Payload length LSB
+    measurement[3] = 0x10;  // Payload length MSB
+    measurement[4] = 0x00;  // Command response
+    measurement[5] = 0x00;  // Status
+    measurement[6] = 0x00;  // Reserved
+    measurement[7] = 0x00;
+    measurement[8] = 0x00;
+    measurement[9] = 0x00;
+
+    // Copy spectrum data (little-endian 16-bit values)
+    for (size_t i = 0; i < numPixels; i++) {
+        measurement[10 + i*2] = spectrum[i] & 0xFF;
+        measurement[10 + i*2 + 1] = (spectrum[i] >> 8) & 0xFF;
+    }
+
+    // Output hex dump (16 bytes per line, matching real firmware)
+    for (size_t i = 0; i < 4106; i++) {
+        if (i % 16 == 0 && i > 0) Serial.println();
+        if (measurement[i] < 0x10) Serial.print("0");
+        Serial.print(measurement[i], HEX);
+        Serial.print(" ");
+    }
+    Serial.println();
+
+    Serial.println("Full 4106 bytes received.");
+
     // Output CSV data
     Serial.println();
     Serial.println("──────────────────────────────────────────────");
