@@ -7,7 +7,7 @@
 #   make CXX=aarch64-linux-gnu-g++ TARGET=via_native_arm64
 
 CXX ?= g++
-CXXFLAGS = -std=c++17 -Wall -Wextra -O2 -pthread
+CXXFLAGS = -std=c++17 -Wall -Wextra -O2 -pthread -static
 INCLUDES = -I.
 
 TARGET ?= via_native
