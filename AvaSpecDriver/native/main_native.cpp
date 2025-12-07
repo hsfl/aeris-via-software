@@ -42,29 +42,53 @@ static unsigned long g_lastMeasurementTime = 0;
 // Random number generator for simulated spectra
 static std::mt19937 g_rng(42);
 
+// Stdin input buffer - accumulates characters until newline
+static std::string g_inputBuffer;
+
 // Signal handler
 void signalHandler(int) {
     g_running = false;
 }
 
 /**
- * @brief Check if input is available on stdin
+ * @brief Check if a complete line is available on stdin
+ *
+ * Buffers input until newline is received, then returns true.
+ * This prevents partial commands from being processed.
  */
 bool SerialClass::available() {
+    // First, try to read any available characters into buffer
     struct pollfd pfd = { STDIN_FILENO, POLLIN, 0 };
-    return poll(&pfd, 1, 0) > 0;
+    while (poll(&pfd, 1, 0) > 0) {
+        char c;
+        if (read(STDIN_FILENO, &c, 1) == 1) {
+            g_inputBuffer += c;
+        } else {
+            break;
+        }
+    }
+
+    // Only return true if we have a complete line
+    return g_inputBuffer.find('\n') != std::string::npos;
 }
 
 /**
- * @brief Read a line from stdin
+ * @brief Read a line from the input buffer
  */
 String SerialClass::readStringUntil(char terminator) {
-    std::string result;
-    char c;
-    while (read(STDIN_FILENO, &c, 1) == 1) {
-        if (c == terminator) break;
-        result += c;
+    // Find the terminator in the buffer
+    size_t pos = g_inputBuffer.find(terminator);
+    if (pos == std::string::npos) {
+        // No terminator found - return empty (shouldn't happen if available() was checked)
+        return String("");
     }
+
+    // Extract the line (without terminator)
+    std::string result = g_inputBuffer.substr(0, pos);
+
+    // Remove the line and terminator from buffer
+    g_inputBuffer.erase(0, pos + 1);
+
     return String(result.c_str());
 }
 
