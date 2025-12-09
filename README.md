@@ -34,19 +34,17 @@ The firmware handles:
 ┌──────────────────────────────────────────────────────┐    ┌─────────────────────────────┐
 │                                                      │    │                             │
 │  [VIA Spectrometer]                                  │    │                             │
-│         │                                            │    │                             │
-│        USB                                           │    │                             │
-│         │                                            │    │                             │
-│         v                                            │    │                             │
+│         ↕                                            │    │                             │
+│        USB (cmd+data)                                │    │                             │
+│         ↕                                            │    │                             │
 │     [Teensy 4.1]───SPI1───>[RFM23]~~~radio~~~>[RFM23]│───>│[Receiver Teensy]            │
+│         ↕                                            │    │        │                    │
+│      microUSB (cmd+data)                             │    │       USB                   │
+│         ↕                                            │    │        │                    │
+│     [Pi Zero]                                        │    │        v                    │
+│         ^                                            │    │   [Computer]                │
 │         │                                            │    │        │                    │
-│      microUSB                                        │    │       USB                   │
-│         │                                            │    │        │                    │
-│         v                                            │    │        v                    │
-│     [Pi Zero]                                        │    │   [Computer]                │
-│         ^                                            │    │        │                    │
-│         │                                            │    │ via_ground_station.py       │
-│        SSH                                           │    │                             │
+│        SSH                                           │    │ via_ground_station.py       │
 │         │                                            │    │                             │
 └─────────│────────────────────────────────────────────┘    └─────────────────────────────┘
           │
