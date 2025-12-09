@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-VIA Interactive Console with Automatic Data Logging
+VIA Interactive Console with Automatic Data Logging + Radio Transmission
 
 Single unified solution that provides:
 - Interactive serial console (like screen)
@@ -9,6 +9,7 @@ Single unified solution that provides:
 - Clean CSV/TXT extraction per measurement
 - Progress bars for data collection (clean output)
 - Verbose mode (-v) for full raw data output
+- Radio transmission of measurement data
 
 Directory structure:
 ~/Aeris/data/via/YYYYMMDD.HHMM/
@@ -24,6 +25,9 @@ Usage:
 Controls:
     Type commands normally (measure, status, help, etc.)
     Type 'sd on' or 'sd off' to toggle SD card reading
+    Type 'radio' to send test message
+    Type 'send' to measure AND transmit via radio
+    Type 'radiosend' to retransmit last measurement
     Ctrl+C to exit
 """
 
@@ -219,6 +223,12 @@ def interactive_console(port, verbose=False, native_bin=None):
     # SD card toggle (client-side skip of SD data display)
     sd_enabled = True
 
+    # Radio transmission state
+    reading_radio_tx = False
+    radio_bytes_sent = 0
+    radio_bytes_total = 0
+    EXPECTED_RADIO_BYTES = 4106  # Full measurement size
+
     # Expected counts (from VIA protocol)
     EXPECTED_HEX_LINES = 257  # 4106 bytes / 16 bytes per line
     EXPECTED_CSV_LINES = 2048  # 2048 pixels
@@ -379,6 +389,59 @@ def interactive_console(port, verbose=False, native_bin=None):
                         continue
 
                     # ─────────────────────────────────────────────────────
+                    # Radio transmission detection
+                    # ─────────────────────────────────────────────────────
+
+                    # Start of radio transmission
+                    if "RADIO TRANSMISSION STARTING" in line:
+                        reading_radio_tx = True
+                        radio_bytes_sent = 0
+                        radio_bytes_total = EXPECTED_RADIO_BYTES
+                        sys.stdout.write(f"\r\n{line_clean}\n")
+                        sys.stdout.flush()
+                        continue
+
+                    # Radio transmission progress
+                    if reading_radio_tx and "TX Progress:" in line:
+                        # Parse "TX Progress: 600 / 4106 bytes (14%)"
+                        try:
+                            parts = line_clean.split()
+                            sent_idx = parts.index("Progress:") + 1
+                            radio_bytes_sent = int(parts[sent_idx])
+                            total_idx = parts.index("/") + 1 if "/" in parts else -1
+                            if total_idx > 0:
+                                radio_bytes_total = int(parts[total_idx])
+                        except (ValueError, IndexError):
+                            pass
+                        if not verbose:
+                            print_progress_bar(radio_bytes_sent, radio_bytes_total, "Radio TX")
+                        else:
+                            sys.stdout.write(f"\r{line_clean}\n")
+                            sys.stdout.flush()
+                        continue
+
+                    # End of radio transmission
+                    if "RADIO TRANSMISSION COMPLETE" in line:
+                        if not verbose:
+                            finish_progress_bar("Radio TX", radio_bytes_total, radio_bytes_sent)
+                        reading_radio_tx = False
+                        sys.stdout.write(f"\r{line_clean}\n")
+                        sys.stdout.flush()
+                        continue
+
+                    # Radio test message
+                    if "Radio test message sent" in line or "Hello World" in line:
+                        sys.stdout.write(f"\r{line_clean}\n")
+                        sys.stdout.flush()
+                        continue
+
+                    # Radio errors
+                    if "Radio not available" in line or "RFM23 init failed" in line:
+                        sys.stdout.write(f"\rERROR: {line_clean}\n")
+                        sys.stdout.flush()
+                        continue
+
+                    # ─────────────────────────────────────────────────────
                     # Data line processing
                     # ─────────────────────────────────────────────────────
 
@@ -488,6 +551,9 @@ Examples:
 
 In-console commands:
   measure      - Take a measurement
+  send         - Take measurement AND transmit via radio
+  radio        - Send radio test message (Hello World)
+  radiosend    - Retransmit last measurement via radio
   help         - Show available commands
   status       - Show system status
   Ctrl+C       - Exit

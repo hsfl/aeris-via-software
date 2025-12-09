@@ -27,16 +27,64 @@ The firmware handles:
 
 ## System Architecture
 
+### Full Radio Link Architecture
+
+```
+                      SATELLITE                                    GROUND STATION
+┌──────────────────────────────────────────────────────┐    ┌─────────────────────────────┐
+│                                                      │    │                             │
+│  [VIA Spectrometer]                                  │    │                             │
+│         │                                            │    │                             │
+│        USB                                           │    │                             │
+│         │                                            │    │                             │
+│         v                                            │    │                             │
+│     [Teensy 4.1]───SPI1───>[RFM23]~~~radio~~~>[RFM23]│───>│[Receiver Teensy]            │
+│         │                                            │    │        │                    │
+│      microUSB                                        │    │       USB                   │
+│         │                                            │    │        │                    │
+│         v                                            │    │        v                    │
+│     [Pi Zero]                                        │    │   [Computer]                │
+│         ^                                            │    │        │                    │
+│         │                                            │    │ via_ground_station.py       │
+│        SSH                                           │    │                             │
+│         │                                            │    │                             │
+└─────────│────────────────────────────────────────────┘    └─────────────────────────────┘
+          │
+  [Control Computer]
+          │
+   via_interactive.py
+```
+
+**Satellite Side:**
+- Control computer SSH's into Pi Zero
+- `via_interactive.py` sends commands to Teensy
+- Teensy 4.1 runs VIA firmware (spectrometer + radio)
+- Commands: `send` triggers measurement → radio transmission
+- Data saved locally to `~/Aeris/data/via/`
+
+**Ground Station Side:**
+- Receiver Teensy runs `radio_receive_test.ino` (from Artemis kit)
+- `via_ground_station.py` captures serial output and saves files
+- Data saved to `~/Aeris/data/via/` (same structure as satellite)
+
+**Radio Protocol:**
+- Header: `VIA:4106:` (payload type and size)
+- Data: 60-byte chunks (RFM23 FIFO limit)
+- Footer: `:END`
+- Frequency: 433 MHz, GFSK modulation at 2kbps
+
+### Local Architecture (No Radio)
+
 ```
 AvaSpec Spectrometer (USB)
          ↓
 Teensy 4.1 (VIA Payload)
     ├─ SD Card (local logging)
     ├─ USB Serial (command console)
-    └─ Future: UART (Serial1) → Artemis OBC (RPi) → RFM23 Radio
+    └─ SPI1 → RFM23 Radio (optional)
 ```
 
-**Current Version:** V3.0 - Command Console Mode
+**Current Version:** V4.0 - Integrated Radio Transmission
 
 ## Key Libraries
 
@@ -387,6 +435,117 @@ View temporally-linked VIA+SEES pairs together, showing both the spectrum and pa
 **GitHub**: https://github.com/hsfl/aeris-via-software
 
 **License**: MIT (see LICENSE file)
+
+---
+
+## Pi 400 Setup Scripts & Commands Reference
+
+Three setup scripts in `~/Desktop/Work/Aeris/` configure the Pi 400 testing machine:
+
+### 1. pi400_setup.sh — Initial System Setup
+
+Installs system packages, Python environment, PlatformIO, and creates helper scripts.
+
+**Installed Packages:**
+- git, curl, wget, vim, htop, screen, tmux, tree, build-essential
+- python3, python3-pip, python3-venv, python3-dev
+- pyserial, matplotlib, numpy, scipy, pandas
+- platformio, gh (GitHub CLI)
+
+**Shell Aliases (added to ~/.bashrc):**
+
+| Alias | Description |
+|-------|-------------|
+| `aeris` | `cd ~/Aeris` |
+| `via` | `cd ~/Aeris/aeris-via-software` |
+| `sees` | `cd ~/Aeris/aeris-sees-software` |
+| `via-test` | Run VIA unit tests |
+| `via-console` | Launch VIA interactive console |
+| `via-build` | Download VIA firmware from GitHub |
+| `via-flash` | Flash VIA firmware to Teensy |
+| `sees-test` | Run SEES unit tests |
+| `sees-console` | Launch SEES interactive console |
+| `sees-build` | Download SEES firmware from GitHub |
+| `sees-flash` | Flash SEES firmware to Teensy |
+| `aeris-status` | Show system status (Python, PlatformIO, USB, repos) |
+| `ports` | List serial ports (`/dev/ttyACM*`, `/dev/ttyUSB*`) |
+| `usb` | List connected USB devices (Teensy, FTDI, CP210, CH340) |
+
+### 2. setup_aeris_console.sh — Install aeris.up Command
+
+Installs the `aeris.up` command to `~/.local/bin/` for launching the AERIS Control Panel.
+
+**Usage:**
+
+```bash
+aeris.up              # Interactive menu
+aeris.up via sim      # VIA simulation
+aeris.up via test     # VIA unit tests
+aeris.up via          # VIA hardware console
+aeris.up sees sim     # SEES simulation
+aeris.up sees test    # SEES unit tests
+aeris.up sees         # SEES hardware console
+aeris.up update       # Pull latest code from git
+aeris.up help         # Show all commands
+```
+
+**Options:**
+- `-v` or `--verbose` — Enable verbose mode (show all output)
+
+**Interactive Menu Options:**
+| Key | Action |
+|-----|--------|
+| 0 | Dual Console (VIA+SEES in tmux) |
+| 1 | VIA Unit Tests |
+| 2 | VIA Simulation |
+| 3 | VIA HIL Test |
+| 4 | SEES Unit Tests |
+| 5 | SEES Simulation |
+| 6 | SEES HIL Test |
+| 7 | Update Code (git pull) |
+| 8 | Data Viewer |
+| 9 | HIL Deploy (flash firmware) |
+| E | Exit |
+
+### 3. clone_repos.sh — Repository Setup
+
+Clones/updates the AERIS repositories and downloads firmware binaries.
+
+**Actions:**
+1. Clones `aeris-via-software` and `aeris-sees-software` from GitHub
+2. Configures git user name and email
+3. Authenticates GitHub CLI for artifact downloads
+4. Creates firmware download/flash scripts
+5. Downloads latest firmware binaries from GitHub Actions
+
+**Created Scripts:**
+
+| Script | Description |
+|--------|-------------|
+| `~/Aeris/via_build.sh` | Download VIA Teensy firmware + native binary |
+| `~/Aeris/via_flash.sh` | Flash VIA firmware to connected Teensy |
+| `~/Aeris/sees_build.sh` | Download SEES Teensy firmware + native binary |
+| `~/Aeris/sees_flash.sh` | Flash SEES firmware to connected Teensy |
+
+**Directory Structure Created:**
+
+```
+~/Aeris/
+├── aeris-via-software/     # VIA payload repo
+├── aeris-sees-software/    # SEES payload repo
+├── firmware/
+│   ├── via/firmware.hex    # VIA Teensy firmware
+│   └── sees/firmware.hex   # SEES Teensy firmware
+├── bin/
+│   ├── via_native          # VIA simulation binary
+│   └── sees_native         # SEES simulation binary
+├── data/
+│   ├── via/                # VIA measurement data
+│   └── sees/               # SEES particle data
+├── logs/
+├── backups/
+└── docs/
+```
 
 ---
 
