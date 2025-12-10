@@ -89,6 +89,12 @@ public:
      */
     uint8_t* getMeasurementBuffer() { return measurement; }
 
+    /**
+     * Check if spectrometer is connected.
+     * @return True if device has been claimed and not disconnected
+     */
+    bool isConnected() { return deviceConnected; }
+
 protected:
     // ──────────────────────────────────────────────
     // USBHost_t36 driver overrides
@@ -103,8 +109,8 @@ protected:
     /** Perform driver initialization: register pipes, transfers, and reset state. */
     void init();
 
-    /** Required override — no explicit disconnect logic used. */
-    virtual void disconnect() {};
+    /** Called when USB device disconnects - mark as disconnected. */
+    virtual void disconnect() { deviceConnected = false; }
 
     /** RX handler called when USB IN transfer completes. */
     void process_rx_data(const Transfer_t *transfer);
@@ -172,6 +178,9 @@ private:
 
     /** Measurement counter for unique CSV filenames. */
     unsigned long measurementCounter;
+
+    /** Tracks whether the device is currently connected. */
+    bool deviceConnected;
 
     // ──────────────────────────────────────────────
     // Internal helper functions

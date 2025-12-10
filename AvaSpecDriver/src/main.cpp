@@ -240,6 +240,8 @@ void showStatus() {
     Serial.println("────────────────────────────────────────────");
     Serial.println("System Status:");
     Serial.println("────────────────────────────────────────────");
+    Serial.print("  Spectrometer:        ");
+    Serial.println(myavaspec.isConnected() ? "CONNECTED" : "DISCONNECTED");
     Serial.print("  SD Card Logging:     ");
     Serial.println(useSD ? "ENABLED" : "DISABLED");
     Serial.print("  Auto Mode:           ");
@@ -267,6 +269,15 @@ void showStatus() {
  * @param transmit If true, also transmit via radio after measurement
  */
 void performMeasurement(bool transmit = false) {
+    // Check if spectrometer is connected
+    if (!myavaspec.isConnected()) {
+        Serial.println();
+        Serial.println("ERROR: Spectrometer not connected!");
+        Serial.println("  Please reconnect the spectrometer and reset the Teensy.");
+        Serial.println();
+        return;
+    }
+
     Serial.println();
     Serial.println("════════════════════════════════════════════════════════");
     Serial.print("Starting Measurement #");

@@ -32,6 +32,7 @@ void AvaSpec::init() {
     measAmount    = 0;       // Legacy count of RX chunks
     appendIndex   = 0;       // Index offset for measurement buffer
     measurementCounter = 0;  // Counter for unique CSV filenames
+    deviceConnected = false; // Will be set true in claim()
 
     // Clear the measurement buffer (safety against stale data)
     memset(measurement, 0, MEAS_SIZE);
@@ -77,6 +78,7 @@ bool AvaSpec::claim(Device_t *dev, int type, const uint8_t *descriptors, uint32_
 
     Serial.println("✅ USB pipes configured and callbacks registered.");
 
+    deviceConnected = true;
     return true;
 }
 
