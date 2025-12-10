@@ -126,9 +126,17 @@ def create_session_directory():
     session_dir.mkdir(parents=True, exist_ok=True)
     return session_dir, session_timestamp
 
-def generate_measurement_filenames(session_timestamp):
-    """Generate measurement filenames with seconds"""
-    measurement_timestamp = datetime.now().strftime("%Y%m%d.%H%M.%S")
+def generate_measurement_filenames(session_timestamp, trigger_time=None):
+    """Generate measurement filenames with seconds
+
+    Args:
+        session_timestamp: Session timestamp (unused but kept for consistency)
+        trigger_time: Optional datetime to use for filename. If None, uses now().
+    """
+    if trigger_time:
+        measurement_timestamp = trigger_time.strftime("%Y%m%d.%H%M.%S")
+    else:
+        measurement_timestamp = datetime.now().strftime("%Y%m%d.%H%M.%S")
     return f"VIA.{measurement_timestamp}.csv", f"VIA.{measurement_timestamp}.txt"
 
 def generate_log_filename(session_timestamp):
@@ -208,6 +216,8 @@ def interactive_console(port, verbose=False, native_bin=None):
     # Data capture state
     in_measurement = False  # Track if we're in a measurement cycle
     measurement_just_ended = False  # Skip separator right after "Measurement Complete!"
+    measurement_trigger_time = None  # Timestamp captured when command SENT for synced filenames
+    command_buffer = ""  # Track typed command for timestamp capture
     reading_hex = False
     reading_csv = False
     reading_sd = False
@@ -260,10 +270,17 @@ def interactive_console(port, verbose=False, native_bin=None):
                 # Local echo for typed characters
                 if char == '\r':
                     sys.stdout.write('\n')
+                    # Capture timestamp when sending measure/send command
+                    cmd = command_buffer.strip().lower()
+                    if cmd in ('measure', 'm', 'send'):
+                        measurement_trigger_time = datetime.now()
+                    command_buffer = ""
                 elif char == '\x7f':  # Backspace
                     sys.stdout.write('\b \b')
+                    command_buffer = command_buffer[:-1] if command_buffer else ""
                 else:
                     sys.stdout.write(char)
+                    command_buffer += char
                 sys.stdout.flush()
 
                 # Send to serial port (convert CR to LF for firmware)
@@ -295,6 +312,7 @@ def interactive_console(port, verbose=False, native_bin=None):
                     # Detect measurement start
                     if "Starting Measurement" in line:
                         in_measurement = True
+                        # Note: timestamp already captured when command was SENT (not here)
                         # Use \r to ensure we start at column 0
                         sys.stdout.write(f"\r\n{line_clean}\n")
                         sys.stdout.flush()
@@ -319,7 +337,8 @@ def interactive_console(port, verbose=False, native_bin=None):
                         hex_data_csv = []
                         csv_data = []
                         hex_line_count = 0
-                        csv_name, txt_name = generate_measurement_filenames(session_timestamp)
+                        # Use trigger time captured at "Starting Measurement" for synchronized timestamps
+                        csv_name, txt_name = generate_measurement_filenames(session_timestamp, measurement_trigger_time)
                         current_csv_file = session_dir / csv_name
                         current_txt_file = session_dir / txt_name
                         if verbose:
