@@ -33,6 +33,7 @@ void AvaSpec::init() {
     appendIndex   = 0;       // Index offset for measurement buffer
     measurementCounter = 0;  // Counter for unique CSV filenames
     deviceConnected = false; // Will be set true in claim()
+    sdEnabled = false;       // SD disabled by default, main.cpp will enable if available
 
     // Clear the measurement buffer (safety against stale data)
     memset(measurement, 0, MEAS_SIZE);
@@ -455,20 +456,24 @@ void AvaSpec::measurementAcknowledgement() {
     // Increment measurement counter
     measurementCounter++;
 
-    // Create unique filename (e.g., spectrum_0001.csv, spectrum_0002.csv, etc.)
+    // Only attempt SD operations if SD logging is enabled
+    File csvFile;
+    bool sdAvailable = false;
     char csvFilename[32];
     snprintf(csvFilename, sizeof(csvFilename), "/spectrum_%04lu.csv", measurementCounter);
 
-    // Open SD file (if available)
-    File csvFile = SD.open(csvFilename, FILE_WRITE);
-    bool sdAvailable = (csvFile);
+    if (sdEnabled) {
+        // Open SD file (if available)
+        csvFile = SD.open(csvFilename, FILE_WRITE);
+        sdAvailable = (csvFile);
 
-    if (sdAvailable) {
-        Serial.print("\nWriting ");
-        Serial.print(csvFilename);
-        Serial.println(" to SD card...");
-    } else {
-        Serial.println("\n⚠️ SD card not available, outputting to Serial only");
+        if (sdAvailable) {
+            Serial.print("\nWriting ");
+            Serial.print(csvFilename);
+            Serial.println(" to SD card...");
+        } else {
+            Serial.println("\n⚠️ SD card not available, outputting to Serial only");
+        }
     }
 
     // Output CSV header to Serial
@@ -514,10 +519,12 @@ void AvaSpec::measurementAcknowledgement() {
     }
 
     // ──────────────────────────────────────────────
-    // Step 2: Log the raw measurement to SD (hex dump)
+    // Step 2: Log the raw measurement to SD (hex dump) - only if SD enabled
     // ──────────────────────────────────────────────
-    Serial.println("Logging raw measurement data (hex)...");
-    logMeasurement(measurement, sizeof(measurement));
+    if (sdEnabled) {
+        Serial.println("Logging raw measurement data (hex)...");
+        logMeasurement(measurement, sizeof(measurement));
+    }
 
     // ──────────────────────────────────────────────
     // Step 3: Build and send measurement acknowledgement (0xC0)

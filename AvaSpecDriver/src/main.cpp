@@ -430,6 +430,7 @@ void processCommand(String cmd) {
         if (!useSD) {
             Serial.println("Enabling SD card logging...");
             useSD = true;
+            myavaspec.setSdAvailable(true);
         } else {
             Serial.println("SD card logging already enabled");
         }
@@ -438,6 +439,7 @@ void processCommand(String cmd) {
         if (useSD) {
             Serial.println("Disabling SD card logging...");
             useSD = false;
+            myavaspec.setSdAvailable(false);
         } else {
             Serial.println("SD card logging already disabled");
         }
@@ -479,6 +481,8 @@ void setup() {
         Serial.println("WARNING: SD Card not found - logging disabled");
         useSD = false;
     }
+    // Sync SD status with spectrometer driver
+    myavaspec.setSdAvailable(useSD);
 
     // Initialize radio
     Serial.println();

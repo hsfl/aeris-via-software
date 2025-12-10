@@ -95,6 +95,13 @@ public:
      */
     bool isConnected() { return deviceConnected; }
 
+    /**
+     * Set SD card availability status.
+     * When disabled, measurementAcknowledgement() will skip SD card writes.
+     * @param available True if SD card is available and logging is enabled
+     */
+    void setSdAvailable(bool available) { sdEnabled = available; }
+
 protected:
     // ──────────────────────────────────────────────
     // USBHost_t36 driver overrides
@@ -181,6 +188,9 @@ private:
 
     /** Tracks whether the device is currently connected. */
     bool deviceConnected;
+
+    /** Tracks whether SD card logging is enabled. */
+    bool sdEnabled;
 
     // ──────────────────────────────────────────────
     // Internal helper functions
