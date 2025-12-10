@@ -331,9 +331,8 @@ void performMeasurement(bool transmit = false) {
         }
     }
 
-    // Step 5: Acknowledge and stop
-    Serial.println("Acknowledging measurement...");
-    myavaspec.measurementAcknowledgement();
+    // Step 5: Stop measurement
+    // Note: measurementAcknowledgement() is already called inside startMeasurement()
     myavaspec.stopMeasurement();
 
     // Step 6: Copy measurement data for radio
