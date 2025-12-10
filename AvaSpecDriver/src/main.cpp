@@ -352,8 +352,12 @@ void performMeasurement(bool transmit = false) {
     Serial.println();
 
     // Step 8: Transmit if requested
-    if (transmit && radioAvailable) {
-        transmitViaRadio(lastMeasurement, 4106);
+    if (transmit) {
+        if (radioAvailable) {
+            transmitViaRadio(lastMeasurement, 4106);
+        } else {
+            Serial.println("ERROR: Radio not available - measurement saved but not transmitted");
+        }
     }
 }
 
