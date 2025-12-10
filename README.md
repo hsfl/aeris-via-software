@@ -30,23 +30,31 @@ The firmware handles:
 ### Full Radio Link Architecture
 
 ```
-                      SATELLITE                                    GROUND STATION
-┌──────────────────────────────────────────────────────┐    ┌─────────────────────────────┐
-│                                                      │    │                             │
-│  [VIA Spectrometer]                                  │    │                             │
-│         ↕                                            │    │                             │
-│        USB (cmd+data)                                │    │                             │
-│         ↕                                            │    │                             │
-│     [Teensy 4.1]───SPI1───>[RFM23]~~~radio~~~>[RFM23]│───>│[Receiver Teensy]            │
-│         ↕                                            │    │        │                    │
-│      microUSB (cmd+data)                             │    │       USB                   │
-│         ↕                                            │    │        │                    │
-│     [Pi Zero]                                        │    │        v                    │
-│         ^                                            │    │   [Computer]                │
-│         │                                            │    │        │                    │
-│        SSH                                           │    │ via_ground_station.py       │
-│         │                                            │    │                             │
-└─────────│────────────────────────────────────────────┘    └─────────────────────────────┘
+            SATELLITE                                    GROUND STATION
+┌─────────────────────────────────────┐       ┌─────────────────────────────────────┐
+│                                     │       │                                     │
+│  [VIA Spectrometer]                 │       │                                     │
+│         ^                           │       │                                     │
+│         │                           │       │                                     │
+│         v                           |       |                                     |
+│        USB (cmd+data)               │       │                                     │
+│         ^                           │       │                                     │
+│         │                           │       │                                     │
+│         v                           |       |                                     |
+│     [Teensy 4.1]───SPI1───>[RFM23]~~|~radio~|~~>[RFM23]───>[Receiver Teensy]      │
+│         ^                           │       │                      │              │
+│         │                           │       │                      │              │
+│         v                           |       |                      |              |
+│      microUSB (cmd+data)            │       │                     USB             │
+│         ^                           │       │                      │              │
+│         │                           │       │                      │              │
+│         v                           |       |                      |              |
+│     [Pi Zero]                       │       │                      v              │
+│         ^                           │       │                   [Computer]        │
+│         │                           │       │                      │              │
+│        SSH                          │       │              via_ground_station.py  │
+│         │                           │       │                                     │
+└─────────│───────────────────────────┘       └─────────────────────────────────────┘
           │
   [Control Computer]
           │
