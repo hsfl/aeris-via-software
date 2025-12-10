@@ -45,7 +45,7 @@
 
 // Use SPI1 for radio (separate from USB Host)
 // SPI1 pins: MISO=39, MOSI=26, SCK=27
-RH_RF22 rf22(RFM23_CS, RFM23_INT, hardware_spi1);
+RH_RF22 rf22(RFM23_CS, RFM23_INT, SPI1);
 
 // Radio chunk size (RFM23 FIFO limit is ~64 bytes, use 60 for safety)
 #define RADIO_CHUNK_SIZE 60
